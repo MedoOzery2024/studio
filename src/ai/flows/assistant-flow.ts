@@ -54,19 +54,27 @@ Your capabilities include:
 
 Engage in a friendly and helpful conversation. Your responses should be in Arabic.`;
 
-    const fullPrompt: any[] = [{ text: prompt }];
+    const model = ai.model('gemini-pro');
+
+    const fullPrompt: any[] = [];
     if (file) {
-      fullPrompt.unshift({ media: { url: file.url } });
+      fullPrompt.push({ media: { url: file.url } });
     }
+    fullPrompt.push({ text: prompt });
     
     // Add the system prompt and a static initial greeting to the history for the model's context.
     const fullHistory = [
-        {role: 'system', content: [{text: systemPrompt}]},
-        {role: 'model', content: [{text: 'مرحبًا! أنا مساعد الذكاء الاصطناعي Medo.Ai. كيف يمكنني مساعدتك اليوم؟'}]},
         ...history
     ];
-
+    if (history.length === 0) {
+        fullHistory.unshift(
+            {role: 'system', content: [{text: systemPrompt}]},
+            {role: 'model', content: [{text: 'مرحبًا! أنا مساعد الذكاء الاصطناعي Medo.Ai. كيف يمكنني مساعدتك اليوم؟'}]}
+        );
+    }
+    
     const {text} = await ai.generate({
+      model,
       prompt: fullPrompt,
       history: fullHistory,
     });

@@ -44,7 +44,6 @@ Your capabilities include:
 - Solving complex questions in accounting, mathematics, and other sciences.
 - Correcting and refactoring code, providing explanations.
 - Answering questions based on the content of provided files.
-- Generating new questions (easy, medium, hard) from documents.
 
 Engage in a friendly and helpful conversation. Your responses should be in Arabic.`;
 
@@ -56,8 +55,8 @@ Engage in a friendly and helpful conversation. Your responses should be in Arabi
     // Combine system prompt and user prompt into a single text block
     fullPrompt.push({ text: `${systemPrompt}\n\nUser Question: ${prompt}` });
 
-    // Choose model based on whether a file is attached
-    const modelToUse = file ? 'googleai/gemini-2.5-flash-image-preview' : 'googleai/gemini-2.5-flash';
+    // Use a single, consistent model to avoid quota issues with specialized models.
+    const modelToUse = 'googleai/gemini-2.5-flash';
     
     const {text} = await ai.generate({
       model: modelToUse,

@@ -10,7 +10,10 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { transcribeAudio } from '@/ai/flows/speech-to-text-flow';
 import { summarizeText } from '@/ai/flows/summarize-text-flow';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser } from '@/firebase/provider';
+import { useFirestore } from '@/firebase/provider';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { useMemoFirebase } from '@/firebase/provider';
 import { collection, doc, deleteDoc } from 'firebase/firestore';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -173,7 +176,7 @@ export function SpeechToTextConverter() {
         
         setIsSaving(true);
         try {
-            const fileId = new Date().toISOString();
+            const fileId = doc(collection(firestore, `users/${user.uid}/uploadedFiles`)).id;
             const docRef = doc(firestore, `users/${user.uid}/uploadedFiles`, fileId);
             const dataToSave = {
                 id: fileId,
@@ -279,17 +282,17 @@ export function SpeechToTextConverter() {
                  <div className='w-full'>
                     <h3 className="text-lg font-medium text-right w-full border-t border-border pt-4 text-primary">حفظ وتنزيل</h3>
                      <div className="flex w-full flex-col gap-4 mt-4">
-                        <div className="flex w-full items-center gap-4" dir="rtl">
+                        <div className="flex w-full flex-col sm:flex-row items-center gap-4" dir="rtl">
                            <Label htmlFor="fileName" className="whitespace-nowrap font-semibold">اسم الملف:</Label>
                             <Input
                                 id="fileName"
                                 value={fileName}
                                 onChange={(e) => setFileName(e.target.value)}
                                 placeholder="أدخل اسم الملف..."
-                                className="text-right bg-secondary focus-visible:ring-primary"
+                                className="text-right bg-secondary focus-visible:ring-primary w-full"
                             />
                         </div>
-                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                             <Button variant="outline" onClick={() => handleDownload(transcribedText, 'txt')} disabled={!transcribedText}>
                                 <Download className="ml-2"/>
                                 تنزيل النص الكامل
@@ -298,7 +301,7 @@ export function SpeechToTextConverter() {
                                <Download className="ml-2"/>
                                تنزيل الملخص
                             </Button>
-                            <Button onClick={handleSave} disabled={isSaving || !transcribedText} className="sm:col-span-1">
+                            <Button onClick={handleSave} disabled={isSaving || !transcribedText} className="sm:col-span-2 md:col-span-1">
                                {isSaving ? <Loader2 className="h-4 w-4 animate-spin ml-2"/> : <Save className="ml-2"/>}
                                {isSaving ? 'جاري الحفظ...' : 'حفظ'}
                            </Button>
@@ -306,15 +309,15 @@ export function SpeechToTextConverter() {
                      </div>
                  </div>
                  
-                  {savedFiles && savedFiles.length > 0 && (
+                  {user && savedFiles && savedFiles.length > 0 && (
                     <div className="w-full">
                         <h3 className="text-lg font-medium text-right w-full border-t border-border pt-4 mt-4 text-primary">الملفات المحفوظة</h3>
                          <ScrollArea className="h-48 w-full mt-2">
                              <ul className="w-full space-y-2 pr-2">
                                 {savedFiles.map((file) => (
                                 <li key={file.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary" dir="rtl">
-                                    <div className="flex flex-col">
-                                        <span className="font-bold text-foreground">{file.fileName}</span>
+                                    <div className="flex flex-col overflow-hidden">
+                                        <span className="font-bold text-foreground truncate">{file.fileName}</span>
                                         <span className="text-xs text-muted-foreground">{new Date(file.uploadDate).toLocaleString()}</span>
                                     </div>
                                     <div className="flex gap-2">
@@ -329,7 +332,7 @@ export function SpeechToTextConverter() {
                          </ScrollArea>
                     </div>
                  )}
-                 {isLoadingFiles && <p className='text-center w-full'>جاري تحميل الملفات المحفوظة...</p>}
+                 {isLoadingFiles && <p className='text-center w-full text-muted-foreground'>جاري تحميل الملفات المحفوظة...</p>}
             </CardFooter>
         </Card>
     );

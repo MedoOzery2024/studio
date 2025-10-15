@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { transcribeAudio } from '@/ai/flows/speech-to-text-flow';
+import { summarizeText } from '@/ai/flows/summarize-text-flow';
 
 export function SpeechToTextConverter() {
     const [isRecording, setIsRecording] = useState(false);
@@ -109,11 +110,29 @@ export function SpeechToTextConverter() {
             return;
         }
         setIsSummarizing(true);
-        // Placeholder for summarization
-        setTimeout(() => {
-            setSummarizedText("هذا ملخص تجريبي للنص المستخرج.");
-            setIsSummarizing(false);
-        }, 2000);
+        setSummarizedText('');
+
+        try {
+            const result = await summarizeText({
+                text: transcribedText,
+                language: 'ar',
+            });
+             if (result && result.summary) {
+                setSummarizedText(result.summary);
+                toast({ title: "تم تلخيص النص بنجاح!" });
+            } else {
+                throw new Error("Summarization returned no content.");
+            }
+        } catch (error) {
+             console.error("Summarization failed:", error);
+            toast({
+                variant: "destructive",
+                title: "فشل تلخيص النص",
+                description: "حدث خطأ أثناء التواصل مع الذكاء الاصطناعي.",
+            });
+        } finally {
+             setIsSummarizing(false);
+        }
     };
 
     return (

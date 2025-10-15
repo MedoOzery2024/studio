@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Mic, MicOff, Loader2, FileText, Download, Trash2, Save } from 'lucide-react';
+import { Mic, MicOff, Loader2, Download, Save } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -17,6 +17,7 @@ export function SpeechToTextConverter() {
     const [summarizedText, setSummarizedText] = useState('');
     const [isTranscribing, setIsTranscribing] = useState(false);
     const [isSummarizing, setIsSummarizing] = useState(false);
+    const [fileName, setFileName] = useState('');
     const { toast } = useToast();
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
@@ -135,6 +136,23 @@ export function SpeechToTextConverter() {
         }
     };
 
+    const handleDownload = (content: string, extension: string) => {
+        if (!content) {
+            toast({ variant: 'destructive', title: 'لا يوجد محتوى للتنزيل' });
+            return;
+        }
+        const finalFileName = fileName.trim() || 'file';
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${finalFileName}.${extension}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
+
     return (
         <Card className="w-full max-w-4xl shadow-2xl bg-card/80 backdrop-blur-sm border-primary/10 border-t-0 rounded-t-none">
             <CardContent className="space-y-6 pt-6">
@@ -200,23 +218,37 @@ export function SpeechToTextConverter() {
             {(transcribedText || summarizedText) && (
                 <CardFooter className="flex flex-col items-start gap-4">
                      <h3 className="text-lg font-medium text-right w-full border-t pt-4">حفظ وتنزيل</h3>
-                     <div className="flex w-full justify-between items-center gap-4">
-                        <div className="flex gap-2">
-                             <Button variant="outline">
-                               <Download className="ml-2"/>
-                               تنزيل
-                           </Button>
-                           <Button variant="outline">
-                               <Save className="ml-2"/>
-                               حفظ
-                           </Button>
+                     <div className="flex w-full flex-col gap-4">
+                        <div className="flex w-full items-center gap-4" dir="rtl">
+                           <Label htmlFor="fileName" className="whitespace-nowrap">اسم الملف:</Label>
+                            <Input
+                                id="fileName"
+                                value={fileName}
+                                onChange={(e) => setFileName(e.target.value)}
+                                placeholder="أدخل اسم الملف..."
+                                className="text-right"
+                            />
                         </div>
-                         <Input
-                            id="fileName"
-                            placeholder="أدخل اسم الملف..."
-                            className="text-right max-w-xs"
-                            dir="rtl"
-                        />
+                         <div className="grid grid-cols-2 gap-4">
+                            <div className="flex flex-col gap-2">
+                                <Label className="text-right">النص الكامل</Label>
+                                <Button variant="outline" onClick={() => handleDownload(transcribedText, 'txt')} disabled={!transcribedText}>
+                                    <Download className="ml-2"/>
+                                    تنزيل (.txt)
+                                </Button>
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <Label className="text-right">النص الملخص</Label>
+                                <Button variant="outline" onClick={() => handleDownload(summarizedText, 'txt')} disabled={!summarizedText}>
+                                   <Download className="ml-2"/>
+                                   تنزيل (.txt)
+                                </Button>
+                            </div>
+                         </div>
+                         <Button disabled>
+                           <Save className="ml-2"/>
+                           حفظ في الموقع (قريباً)
+                       </Button>
                      </div>
                 </CardFooter>
             )}

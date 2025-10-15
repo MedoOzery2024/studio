@@ -1,0 +1,79 @@
+/**
+ * @file Firestore Security Rules for Medo.Ai Time Hub
+ * @description This ruleset enforces a strict user-ownership model, ensuring users can only access their own data.
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores user profile information.
+ * - /users/{userId}/uploadedFiles/{fileId}: Stores files uploaded by each user.
+ *
+ * Key Security Decisions:
+ * - Users can only create, read, update, and delete their own user documents.
+ * - Users can only create, read, update, and delete files they have uploaded.
+ * - Listing of all users is disallowed.
+ *
+ * Denormalization for Authorization:
+ * - The `uploadedFiles` documents contain a `userId` field that is denormalized to allow simpler security rules and avoid `get()` calls to the `/users/{userId}` document.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Controls access to user profile information.
+     * @path /users/{userId}
+     * @allow (create) - Authenticated user can create their own profile if the userId matches their auth.uid.
+     * @allow (get, update, delete) - Authenticated user can read, update, and delete their own profile if the userId matches their auth.uid.
+     * @deny (create) - If the userId does not match the authenticated user's ID.
+     * @deny (get, update, delete) - If the userId does not match the authenticated user's ID.
+     * @principle Enforces document ownership for writes and reads.
+     */
+    match /users/{userId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return isSignedIn() && request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Controls access to uploaded files for each user.
+     * @path /users/{userId}/uploadedFiles/{fileId}
+     * @allow (create) - Authenticated user can create a file if the userId matches their auth.uid.
+     * @allow (get, list, update, delete) - Authenticated user can read, list, update, and delete their own files if the userId matches their auth.uid.
+     * @deny (create) - If the userId does not match the authenticated user's ID.
+     * @deny (get, list, update, delete) - If the userId does not match the authenticated user's ID.
+     * @principle Enforces document ownership for writes and reads, validates relational integrity.
+     */
+    match /users/{userId}/uploadedFiles/{fileId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return isSignedIn() && request.auth.uid == userId;
+      }
+
+       function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == request.auth.uid;
+      allow update: if isExistingOwner(userId) && resource.data.userId == request.resource.data.userId;
+      allow delete: if isExistingOwner(userId);
+    }
+  }
+}

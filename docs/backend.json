@@ -1,0 +1,138 @@
+{
+  "entities": {
+    "UploadedFile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UploadedFile",
+      "type": "object",
+      "description": "Represents a file uploaded to the system, including images, PDFs, Word documents, PowerPoint presentations, and text documents.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the uploaded file."
+        },
+        "fileName": {
+          "type": "string",
+          "description": "The original name of the uploaded file."
+        },
+        "fileType": {
+          "type": "string",
+          "description": "The MIME type of the file (e.g., 'image/jpeg', 'application/pdf')."
+        },
+        "fileSize": {
+          "type": "number",
+          "description": "The size of the file in bytes."
+        },
+        "uploadDate": {
+          "type": "string",
+          "description": "The date and time when the file was uploaded.",
+          "format": "date-time"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N UploadedFile).  The user who uploaded the file."
+        },
+        "storageLocation": {
+          "type": "string",
+          "description": "The location where the file is stored (e.g., cloud storage URL, local file path)."
+        },
+        "description": {
+          "type": "string",
+          "description": "A user-provided description of the file.  Allows for easier searching and organization."
+        }
+      },
+      "required": [
+        "id",
+        "fileName",
+        "fileType",
+        "fileSize",
+        "uploadDate",
+        "userId",
+        "storageLocation"
+      ]
+    },
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the Medo.Ai Time Hub application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user."
+        },
+        "userName": {
+          "type": "string",
+          "description": "The username of the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address of the user.",
+          "format": "email"
+        },
+        "registrationDate": {
+          "type": "string",
+          "description": "The date and time when the user registered.",
+          "format": "date-time"
+        },
+        "lastLogin": {
+          "type": "string",
+          "description": "The date and time of the user's last login.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userName",
+        "email",
+        "registrationDate"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profile information.  Path-based ownership ensures only the user can modify their own profile.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/uploadedFiles/{fileId}",
+        "definition": {
+          "entityName": "UploadedFile",
+          "schema": {
+            "$ref": "#/backend/entities/UploadedFile"
+          },
+          "description": "Stores files uploaded by each user. Includes denormalized 'userId' for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user who uploaded the file."
+            },
+            {
+              "name": "fileId",
+              "description": "The unique identifier for the uploaded file."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to provide a secure and scalable solution for the Medo.Ai Time Hub application, focusing on efficient file storage and retrieval, and user management. The design adheres to the core principles of Authorization Independence, Clarity of Intent, DBAC, and QAPs. It leverages Structural Segregation to ensure each collection has a homogeneous security posture and Access Modeling for consistent authorization patterns.\n\nAuthorization Independence is achieved by denormalizing the `userId` into the `uploadedFiles` collection. This eliminates the need for `get()` calls to the `/users/{userId}` document to verify ownership, allowing for atomic operations and simplified security rules.\n\nThe design supports QAPs by segregating user-specific files under the `/users/{userId}/uploadedFiles/{fileId}` path. This ensures that listing files is restricted to authorized users only, as security rules can easily enforce that only the user with the matching `userId` can access these files. This also provides a clear ownership model, making security rules simple and robust."
+  }
+}

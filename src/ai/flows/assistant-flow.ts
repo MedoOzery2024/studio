@@ -11,7 +11,7 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const AssistantInputSchema = z.object({
-  prompt: z.string().describe('The user\'s latest message.'),
+  prompt: z.string().describe("The user's latest message."),
    file: z.object({
     url: z.string().describe("A data URI of the file. Expected format: 'data:<mimetype>;base64,<encoded_data>'."),
   }).optional().describe('An optional file (image, pdf) to include with the prompt.'),
@@ -19,7 +19,7 @@ const AssistantInputSchema = z.object({
 export type AssistantInput = z.infer<typeof AssistantInputSchema>;
 
 const AssistantOutputSchema = z.object({
-  response: z.string().describe('The AI\'s response.'),
+  response: z.string().describe("The AI's response."),
 });
 export type AssistantOutput = z.infer<typeof AssistantOutputSchema>;
 
@@ -48,18 +48,19 @@ Your capabilities include:
 
 Engage in a friendly and helpful conversation. Your responses should be in Arabic.`;
 
-    const fullPrompt: any[] = [
-      // The system prompt provides context but is not a "message" in the chat history.
-      // It's better to prepend it to the user's text prompt.
-    ];
+    const fullPrompt: any[] = [];
     if (file) {
       fullPrompt.push({ media: { url: file.url } });
     }
+    
     // Combine system prompt and user prompt into a single text block
     fullPrompt.push({ text: `${systemPrompt}\n\nUser Question: ${prompt}` });
+
+    // Choose model based on whether a file is attached
+    const modelToUse = file ? 'googleai/gemini-2.5-flash-image-preview' : 'googleai/gemini-2.5-flash';
     
     const {text} = await ai.generate({
-      model: 'googleai/gemini-2.5-flash-image-preview',
+      model: modelToUse,
       prompt: fullPrompt,
     });
 

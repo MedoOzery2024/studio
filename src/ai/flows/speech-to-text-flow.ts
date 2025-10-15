@@ -41,6 +41,7 @@ const transcribeAudioFlow = ai.defineFlow(
         { media: input.audio },
         { text: 'Transcribe the audio.' },
       ],
+      model: "googleai/gemini-2.5-flash"
     });
     
     return { text };

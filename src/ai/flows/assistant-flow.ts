@@ -62,7 +62,7 @@ Engage in a friendly and helpful conversation. Your responses should be in Arabi
     const {text} = await ai.generate({
       prompt: fullPrompt,
       history: [
-        {role: 'user', content: [{text: systemPrompt}]},
+        {role: 'system', content: [{text: systemPrompt}]},
         {role: 'model', content: [{text: 'مرحبًا! أنا مساعد الذكاء الاصطناعي Medo.Ai. كيف يمكنني مساعدتك اليوم؟'}]},
         ...history
     ],

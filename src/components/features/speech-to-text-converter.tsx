@@ -70,7 +70,7 @@ export function SpeechToTextConverter() {
                 setIsRecording(true);
                 toast({ title: "بدء التسجيل...", description: "تحدث الآن." });
 
-                const recorder = new MediaRecorder(stream);
+                const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
                 mediaRecorderRef.current = recorder;
                 audioChunksRef.current = [];
 

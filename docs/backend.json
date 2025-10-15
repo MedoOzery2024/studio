@@ -4,50 +4,52 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "UploadedFile",
       "type": "object",
-      "description": "Represents a file uploaded to the system, including images, PDFs, Word documents, PowerPoint presentations, and text documents.",
+      "description": "Represents a file or text content generated and saved by a user. This can include images, PDFs, Word documents, PowerPoint presentations, and text documents, as well as transcribed and summarized text.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the uploaded file."
+          "description": "Unique identifier for the uploaded file or content."
         },
         "fileName": {
           "type": "string",
-          "description": "The original name of the uploaded file."
+          "description": "The name of the file or content."
         },
         "fileType": {
           "type": "string",
-          "description": "The MIME type of the file (e.g., 'image/jpeg', 'application/pdf')."
+          "description": "The MIME type of the file (e.g., 'image/jpeg', 'application/pdf', 'text/plain')."
         },
         "fileSize": {
           "type": "number",
-          "description": "The size of the file in bytes."
+          "description": "The size of the file in bytes (if applicable)."
         },
         "uploadDate": {
           "type": "string",
-          "description": "The date and time when the file was uploaded.",
+          "description": "The date and time when the file was uploaded or content was created.",
           "format": "date-time"
         },
         "userId": {
           "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N UploadedFile).  The user who uploaded the file."
+          "description": "Reference to User. (Relationship: User 1:N UploadedFile). The user who created or uploaded the content."
         },
         "storageLocation": {
           "type": "string",
-          "description": "The location where the file is stored (e.g., cloud storage URL, local file path)."
+          "description": "The location where the file is stored (e.g., cloud storage URL). Not applicable for text content stored directly in Firestore."
         },
-        "description": {
-          "type": "string",
-          "description": "A user-provided description of the file.  Allows for easier searching and organization."
+        "transcribedText": {
+            "type": "string",
+            "description": "The full text content, e.g., from speech-to-text."
+        },
+        "summarizedText": {
+            "type": "string",
+            "description": "The summarized version of the text content."
         }
       },
       "required": [
         "id",
         "fileName",
         "fileType",
-        "fileSize",
         "uploadDate",
-        "userId",
-        "storageLocation"
+        "userId"
       ]
     },
     "User": {
@@ -103,7 +105,7 @@
           "schema": {
             "$ref": "#/backend/entities/User"
           },
-          "description": "Stores user profile information.  Path-based ownership ensures only the user can modify their own profile.",
+          "description": "Stores user profile information. Path-based ownership ensures only the user can modify their own profile.",
           "params": [
             {
               "name": "userId",
@@ -119,15 +121,15 @@
           "schema": {
             "$ref": "#/backend/entities/UploadedFile"
           },
-          "description": "Stores files uploaded by each user. Includes denormalized 'userId' for authorization independence.",
+          "description": "Stores files and text content created by each user. Includes denormalized 'userId' for authorization independence.",
           "params": [
             {
               "name": "userId",
-              "description": "The unique identifier for the user who uploaded the file."
+              "description": "The unique identifier for the user who created the content."
             },
             {
               "name": "fileId",
-              "description": "The unique identifier for the uploaded file."
+              "description": "The unique identifier for the content."
             }
           ]
         }

@@ -1,9 +1,10 @@
 import { ClockDisplay } from '@/components/features/clock-display';
 import { ImageToPdfConverter } from '@/components/features/image-to-pdf-converter';
 import { QuestionGenerator } from '@/components/features/question-generator';
+import { SpeechToTextConverter } from '@/components/features/speech-to-text-converter';
 import { Toaster } from "@/components/ui/toaster"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ImageIcon, BrainCircuit } from 'lucide-react';
+import { ImageIcon, BrainCircuit, Mic } from 'lucide-react';
 
 export default function Home() {
   return (
@@ -18,7 +19,7 @@ export default function Home() {
         <ClockDisplay />
         
         <Tabs defaultValue="image-converter" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="image-converter">
               <ImageIcon className="w-5 h-5 mr-2" />
               تحويل الصور إلى PDF
@@ -27,12 +28,19 @@ export default function Home() {
               <BrainCircuit className="w-5 h-5 mr-2" />
               توليد الأسئلة
             </TabsTrigger>
+            <TabsTrigger value="speech-to-text">
+              <Mic className="w-5 h-5 mr-2" />
+              تحويل الكلام إلى نص
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="image-converter">
             <ImageToPdfConverter />
           </TabsContent>
           <TabsContent value="question-generator">
             <QuestionGenerator />
+          </TabsContent>
+           <TabsContent value="speech-to-text">
+            <SpeechToTextConverter />
           </TabsContent>
         </Tabs>
 

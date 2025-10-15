@@ -75,7 +75,7 @@ const generateQuestionsFlow = ai.defineFlow(
     outputSchema: GenerateQuestionsOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
+    const {output} = await prompt(input, { model: 'googleai/gemini-2.5-flash' });
     return output!;
   }
 );

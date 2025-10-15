@@ -28,15 +28,31 @@ export function QuestionGenerator() {
         if (!file) return;
 
         setFileName(file.name);
-        toast({
-            title: `تم رفع ملف: ${file.name}`,
-            description: "اضغط على زر 'توليد الأسئلة' لاستخراج النص وإنشاء الأسئلة.",
-        });
+        setGeneratedQuestions([]);
 
-        // In a real app, you'd extract text from PDF/image here.
-        // For now, we'll just use a placeholder text.
-        // This simulates that text extraction will happen on the backend/AI flow.
-        setSourceText("باريس هي عاصمة فرنسا وأكبر مدنها من حيث عدد السكان. تقع على ضفاف نهر السين في الجزء الشمالي من البلاد.");
+        // For this example, we simulate text extraction.
+        // The AI flow will receive this text.
+        // In a real application, you would use a library (like pdf-js or tesseract.js on the client,
+        // or a backend service) to extract text from the PDF/image.
+        // We'll use a placeholder text if it's a PDF or image for demonstration.
+        const isPdf = file.type === 'application/pdf';
+        const isImage = file.type.startsWith('image/');
+
+        if (isPdf || isImage) {
+            setSourceText("النص المستخرج من الملف. باريس هي عاصمة فرنسا وأكبر مدنها من حيث عدد السكان. تقع على ضفاف نهر السين في الجزء الشمالي من البلاد.");
+             toast({
+                title: `تم رفع ملف: ${file.name}`,
+                description: "النص جاهز الآن. اضغط على زر 'توليد الأسئلة' للبدء.",
+            });
+        } else {
+             setSourceText('');
+             setFileName('');
+             toast({
+                variant: 'destructive',
+                title: 'نوع ملف غير مدعوم',
+                description: 'الرجاء رفع ملف PDF أو صورة.',
+            });
+        }
     };
 
     const handleGenerateQuestions = async () => {
@@ -163,7 +179,7 @@ export function QuestionGenerator() {
                                 <AccordionTrigger className="text-right hover:no-underline">{`سؤال ${index + 1}: ${q.question}`}</AccordionTrigger>
                                 <AccordionContent>
                                     <div className="space-y-4 text-right pr-4 border-r-2 border-primary mr-2">
-                                        {q.isInteractive && q.options && (
+                                        {q.isInteractive && q.options && q.options.length > 0 && (
                                             <div className="space-y-2">
                                                 <h4 className="font-semibold">الخيارات:</h4>
                                                 <ul className="space-y-1">

@@ -59,7 +59,6 @@ export function AiAssistant() {
             return;
         }
 
-
         const userMessage: Message = {
             role: 'user',
             content: [{ text: promptText }],
@@ -73,7 +72,7 @@ export function AiAssistant() {
         try {
              const result = await askAssistant({
                 prompt: promptText,
-                history: messages,
+                history: messages, // Send the history before the new user message
                 file: attachedFile ? { url: attachedFile.url } : undefined,
             });
 
@@ -94,6 +93,7 @@ export function AiAssistant() {
                 title: 'حدث خطأ',
                 description: 'فشل الاتصال بالمساعد الذكي. الرجاء المحاولة مرة أخرى.',
             });
+             // Rollback to previous state on error
             setMessages(messages);
         } finally {
             setIsLoading(false);

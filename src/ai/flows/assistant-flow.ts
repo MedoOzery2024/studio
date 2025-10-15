@@ -58,14 +58,17 @@ Engage in a friendly and helpful conversation. Your responses should be in Arabi
     if (file) {
       fullPrompt.unshift({ media: { url: file.url } });
     }
-
-    const {text} = await ai.generate({
-      prompt: fullPrompt,
-      history: [
+    
+    // Add the system prompt and a static initial greeting to the history for the model's context.
+    const fullHistory = [
         {role: 'system', content: [{text: systemPrompt}]},
         {role: 'model', content: [{text: 'مرحبًا! أنا مساعد الذكاء الاصطناعي Medo.Ai. كيف يمكنني مساعدتك اليوم؟'}]},
         ...history
-    ],
+    ];
+
+    const {text} = await ai.generate({
+      prompt: fullPrompt,
+      history: fullHistory,
     });
 
     return {response: text};

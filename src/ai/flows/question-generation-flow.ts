@@ -89,7 +89,7 @@ ${image ? "Analyze the following image:" : "Analyze the following text:"}
       }
     });
     
-    const output = llmResponse.output();
+    const output = llmResponse.output;
     
     if (!output) {
       throw new Error("Failed to get a structured response from the AI model.");

@@ -48,12 +48,18 @@ Your capabilities include:
 Engage in a friendly and helpful conversation. Your responses should be in Arabic.`;
 
     const fullPrompt: any[] = [];
-    if (file) {
-      fullPrompt.push({ media: { url: file.url } });
-    }
     
-    // Combine system prompt and user prompt into a single text block
-    fullPrompt.push({ text: `${systemPrompt}\n\nUser Question: ${prompt}` });
+    // Combine system prompt, user prompt, and file context into a single cohesive prompt.
+    const textPart = `${systemPrompt}\n\nUser Question: ${prompt}`;
+
+    if (file) {
+      // If a file is present, structure the prompt for multimodal understanding.
+      fullPrompt.push({ media: { url: file.url } });
+      fullPrompt.push({ text: textPart });
+    } else {
+      // If no file, just send the text prompt.
+      fullPrompt.push({ text: textPart });
+    }
 
     // Use a single, consistent model to avoid quota issues with specialized models.
     const modelToUse = 'googleai/gemini-2.5-flash';

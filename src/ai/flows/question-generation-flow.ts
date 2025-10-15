@@ -26,6 +26,7 @@ const GenerateQuestionsInputSchema = z.object({
   language: z.string().describe('The language of the source text (e.g., "ar", "en").'),
   numQuestions: z.number().min(1).max(100).describe('The number of questions to generate.'),
   interactive: z.boolean().describe('Whether to generate interactive (multiple-choice) questions or not.'),
+  difficulty: z.enum(['easy', 'medium', 'hard']).describe('The difficulty level of the questions.'),
 });
 export type GenerateQuestionsInput = z.infer<typeof GenerateQuestionsInputSchema>;
 
@@ -48,10 +49,11 @@ const generateQuestionsFlow = ai.defineFlow(
     outputSchema: GenerateQuestionsOutputSchema,
   },
   async input => {
-    const { text, image, language, numQuestions, interactive } = input;
+    const { text, image, language, numQuestions, interactive, difficulty } = input;
 
     const promptText = `You are an expert in creating educational content. Your task is to generate a list of questions based on the provided context (text or image).
 The questions should be in the same language as the source text, which is '${language}'.
+The questions should be of '${difficulty}' difficulty.
 
 Generate exactly ${numQuestions} questions.
 

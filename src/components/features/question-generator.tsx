@@ -10,16 +10,20 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { generateQuestions, Question } from '@/ai/flows/question-generation-flow';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { cn } from '@/lib/utils';
 
 const MAX_QUESTIONS = 100;
+type Difficulty = 'easy' | 'medium' | 'hard';
+
 
 export function QuestionGenerator() {
     const [isGenerating, setIsGenerating] = useState(false);
     const [generatedQuestions, setGeneratedQuestions] = useState<Question[]>([]);
-    const [sourceText, setSourceText] = useState('');
     const [sourceImage, setSourceImage] = useState<string | null>(null);
     const [numQuestions, setNumQuestions] = useState(5);
     const [isInteractive, setIsInteractive] = useState(true);
+    const [difficulty, setDifficulty] = useState<Difficulty>('medium');
     const [fileName, setFileName] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { toast } = useToast();
@@ -31,7 +35,6 @@ export function QuestionGenerator() {
         setFileName(file.name);
         setGeneratedQuestions([]);
         setSourceImage(null);
-        setSourceText('');
 
         const isPdf = file.type === 'application/pdf';
         const isImage = file.type.startsWith('image/');
@@ -51,8 +54,6 @@ export function QuestionGenerator() {
             reader.onload = (e) => {
                 const dataUrl = e.target?.result as string;
                 setSourceImage(dataUrl);
-                // We no longer set placeholder text. The image data URL is the source.
-                setSourceText("Image file ready for analysis."); // Placeholder to enable the button
                  toast({
                     title: `تم رفع ملف: ${file.name}`,
                     description: "الملف جاهز الآن. اضغط على زر 'توليد الأسئلة' للبدء.",
@@ -88,6 +89,7 @@ export function QuestionGenerator() {
                 language: 'ar',
                 numQuestions: numQuestions,
                 interactive: isInteractive,
+                difficulty: difficulty,
             });
 
             if (result && result.questions) {
@@ -152,7 +154,7 @@ export function QuestionGenerator() {
                                 <span>إعدادات التوليد</span>
                             </div>
                         </AccordionTrigger>
-                        <AccordionContent className="space-y-4 pt-4">
+                        <AccordionContent className="space-y-6 pt-4">
                             <div className="flex items-center justify-between">
                                 <Label htmlFor="num-questions" className="font-semibold">عدد الأسئلة</Label>
                                 <div className="flex items-center gap-2">
@@ -165,6 +167,33 @@ export function QuestionGenerator() {
                                 <Label htmlFor="interactive-switch" className="font-semibold">أسئلة تفاعلية (اختيار من متعدد)</Label>
                                 <Switch id="interactive-switch" checked={isInteractive} onCheckedChange={setIsInteractive} />
                             </div>
+                             <div className="space-y-3">
+                                <Label className="font-semibold">مستوى الصعوبة</Label>
+                                <RadioGroup
+                                    value={difficulty}
+                                    onValueChange={(value: Difficulty) => setDifficulty(value)}
+                                    className="grid grid-cols-3 gap-2"
+                                    dir="rtl"
+                                >
+                                    {(['easy', 'medium', 'hard'] as Difficulty[]).map((level) => {
+                                        const translations = { easy: 'سهل', medium: 'متوسط', hard: 'صعب' };
+                                        return (
+                                            <div key={level}>
+                                                <RadioGroupItem value={level} id={level} className="sr-only" />
+                                                <Label
+                                                    htmlFor={level}
+                                                    className={cn(
+                                                        "flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer",
+                                                        difficulty === level && "border-primary"
+                                                    )}
+                                                >
+                                                    {translations[level]}
+                                                </Label>
+                                            </div>
+                                        );
+                                    })}
+                                </RadioGroup>
+                             </div>
                         </AccordionContent>
                     </AccordionItem>
                 </Accordion>

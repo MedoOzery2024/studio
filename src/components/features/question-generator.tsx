@@ -17,6 +17,7 @@ export function QuestionGenerator() {
     const [isGenerating, setIsGenerating] = useState(false);
     const [generatedQuestions, setGeneratedQuestions] = useState<Question[]>([]);
     const [sourceText, setSourceText] = useState('');
+    const [sourceImage, setSourceImage] = useState<string | null>(null);
     const [numQuestions, setNumQuestions] = useState(5);
     const [isInteractive, setIsInteractive] = useState(true);
     const [fileName, setFileName] = useState('');
@@ -29,38 +30,50 @@ export function QuestionGenerator() {
 
         setFileName(file.name);
         setGeneratedQuestions([]);
+        setSourceImage(null);
+        setSourceText('');
 
-        // For this example, we simulate text extraction.
-        // The AI flow will receive this text.
-        // In a real application, you would use a library (like pdf-js or tesseract.js on the client,
-        // or a backend service) to extract text from the PDF/image.
-        // We'll use a placeholder text if it's a PDF or image for demonstration.
         const isPdf = file.type === 'application/pdf';
         const isImage = file.type.startsWith('image/');
 
-        if (isPdf || isImage) {
-            setSourceText("النص المستخرج من الملف. باريس هي عاصمة فرنسا وأكبر مدنها من حيث عدد السكان. تقع على ضفاف نهر السين في الجزء الشمالي من البلاد.");
-             toast({
-                title: `تم رفع ملف: ${file.name}`,
-                description: "النص جاهز الآن. اضغط على زر 'توليد الأسئلة' للبدء.",
+        if (isPdf) {
+            toast({
+                variant: 'destructive',
+                title: 'ملفات PDF غير مدعومة حاليًا',
+                description: 'هذه الميزة تدعم تحليل الصور فقط في الوقت الحالي.',
             });
+            setFileName('');
+            return;
+        }
+
+        if (isImage) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const dataUrl = e.target?.result as string;
+                setSourceImage(dataUrl);
+                // We no longer set placeholder text. The image data URL is the source.
+                setSourceText("Image file ready for analysis."); // Placeholder to enable the button
+                 toast({
+                    title: `تم رفع ملف: ${file.name}`,
+                    description: "الملف جاهز الآن. اضغط على زر 'توليد الأسئلة' للبدء.",
+                });
+            };
+            reader.readAsDataURL(file);
         } else {
-             setSourceText('');
-             setFileName('');
              toast({
                 variant: 'destructive',
                 title: 'نوع ملف غير مدعوم',
-                description: 'الرجاء رفع ملف PDF أو صورة.',
+                description: 'الرجاء رفع ملف صورة.',
             });
         }
     };
 
     const handleGenerateQuestions = async () => {
-        if (!sourceText) {
+        if (!sourceImage) {
             toast({
                 variant: 'destructive',
-                title: 'لا يوجد محتوى',
-                description: 'الرجاء رفع ملف أولاً لاستخراج النص.',
+                title: 'لا يوجد ملف صورة',
+                description: 'الرجاء رفع صورة أولاً.',
             });
             return;
         }
@@ -70,7 +83,8 @@ export function QuestionGenerator() {
 
         try {
             const result = await generateQuestions({
-                text: sourceText,
+                text: "Analyze the attached image to generate questions.", // Instruction for the AI
+                image: sourceImage,
                 language: 'ar',
                 numQuestions: numQuestions,
                 interactive: isInteractive,
@@ -114,18 +128,18 @@ export function QuestionGenerator() {
                                 <span className="font-semibold text-primary">{fileName}</span>
                             ) : (
                                 <>
-                                    <span className="font-semibold text-primary">انقر للاختيار</span> أو اسحب وأفلت الملفات هنا
+                                    <span className="font-semibold text-primary">انقر للاختيار</span> أو اسحب وأفلت صورة هنا
                                 </>
                             )}
                         </p>
-                        <p className="text-xs text-muted-foreground">ملفات PDF أو صور</p>
+                        <p className="text-xs text-muted-foreground">PNG, JPG, GIF</p>
                     </div>
                 </div>
                  <Input
                     id="file-upload-qg"
                     ref={fileInputRef}
                     type="file"
-                    accept=".pdf,image/*"
+                    accept="image/*"
                     className="hidden"
                     onChange={handleFileChange}
                 />
@@ -156,7 +170,7 @@ export function QuestionGenerator() {
                 </Accordion>
 
 
-                <Button onClick={handleGenerateQuestions} disabled={isGenerating || !sourceText} className="w-full text-lg py-6">
+                <Button onClick={handleGenerateQuestions} disabled={isGenerating || !sourceImage} className="w-full text-lg py-6">
                     {isGenerating ? (
                         <>
                             <Loader2 className="ml-2 h-5 w-5 animate-spin" />

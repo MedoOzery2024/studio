@@ -1,5 +1,6 @@
 import { ClockDisplay } from '@/components/features/clock-display';
 import { ImageToPdfConverter } from '@/components/features/image-to-pdf-converter';
+import { QuestionGenerator } from '@/components/features/question-generator';
 import { Toaster } from "@/components/ui/toaster"
 
 export default function Home() {
@@ -14,6 +15,7 @@ export default function Home() {
       <main className="w-full max-w-4xl mt-32 mb-24 space-y-8">
         <ClockDisplay />
         <ImageToPdfConverter />
+        <QuestionGenerator />
       </main>
 
       <footer className="absolute bottom-8 text-center px-4" dir="rtl">

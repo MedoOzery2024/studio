@@ -62,14 +62,11 @@ Engage in a friendly and helpful conversation. Your responses should be in Arabi
     }
     fullPrompt.push({ text: prompt });
     
-    // Add the system prompt and a static initial greeting to the history for the model's context.
-    const fullHistory = [
-        ...history
-    ];
+    // Add the system prompt and a static initial greeting to the history for the model's context ONLY if history is empty.
+    const fullHistory = [...history];
     if (history.length === 0) {
         fullHistory.unshift(
-            {role: 'system', content: [{text: systemPrompt}]},
-            {role: 'model', content: [{text: 'مرحبًا! أنا مساعد الذكاء الاصطناعي Medo.Ai. كيف يمكنني مساعدتك اليوم؟'}]}
+            {role: 'system', content: [{text: systemPrompt}]}
         );
     }
     

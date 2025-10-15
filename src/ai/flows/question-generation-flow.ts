@@ -59,7 +59,7 @@ For every question, you MUST provide:
 4.  A brief explanation of why the answer is correct ('explanation').
 5.  A boolean flag 'isInteractive'.
 
-The output should be a JSON object that strictly follows the defined output schema.
+CRITICAL: The output must be a valid JSON object that strictly adheres to the defined output schema. Do not output plain text.
 
 Source Text:
 '''
@@ -75,7 +75,7 @@ const generateQuestionsFlow = ai.defineFlow(
     outputSchema: GenerateQuestionsOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input, { model: 'googleai/gemini-pro' });
+    const {output} = await prompt(input, { model: 'googleai/gemini-2.5-flash' });
     return output!;
   }
 );

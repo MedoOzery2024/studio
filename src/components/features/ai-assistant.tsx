@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/componen
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Bot, User, Paperclip, Send, Loader2, Image as ImageIcon, X } from 'lucide-react';
+import { Bot, User, Paperclip, Send, Loader2, File as FileIcon, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
@@ -48,6 +48,17 @@ export function AiAssistant() {
         if (attachedFile && !input.trim()) {
             promptText = `اشرح هذا الملف: ${attachedFile.name}`;
         }
+        
+        if (attachedFile?.type === 'application/pdf') {
+            toast({
+                variant: 'destructive',
+                title: 'معالجة PDF غير مدعومة بعد',
+                description: 'جاري العمل على إضافة دعم تحليل ملفات PDF. يمكنك تحليل الصور حاليًا.',
+            });
+            setIsLoading(false);
+            return;
+        }
+
 
         const userMessage: Message = {
             role: 'user',
@@ -97,12 +108,11 @@ export function AiAssistant() {
     const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
-            // For now, only allow images. PDF processing will be a future step.
-            if (!file.type.startsWith('image/')) {
+            if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
                 toast({
                     variant: 'destructive',
                     title: 'نوع ملف غير مدعوم',
-                    description: 'حاليًا، يمكنك رفع الصور فقط.',
+                    description: 'حاليًا، يمكنك رفع الصور وملفات PDF فقط.',
                 });
                 return;
             }
@@ -141,7 +151,7 @@ export function AiAssistant() {
                                 <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
                                     <Bot className="w-16 h-16 mb-4" />
                                     <h2 className="text-2xl font-semibold">المساعد الذكي</h2>
-                                    <p>اطرح سؤالاً، أو ارفع صورة لبدء المحادثة.</p>
+                                    <p>اطرح سؤالاً، أو ارفع صورة/ملف PDF لبدء المحادثة.</p>
                                 </div>
                             )}
                             {messages.map((message, index) => (
@@ -189,7 +199,7 @@ export function AiAssistant() {
                     <div className="border-t p-4">
                          {attachedFile && (
                             <div className="relative mb-2 p-2 border rounded-md flex items-center gap-2 text-sm bg-muted/50">
-                                <ImageIcon className="w-5 h-5 text-muted-foreground" />
+                                <FileIcon className="w-5 h-5 text-muted-foreground" />
                                 <span className="truncate">{attachedFile.name}</span>
                                 <Button
                                     type="button"

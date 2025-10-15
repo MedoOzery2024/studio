@@ -20,7 +20,7 @@ type Difficulty = 'easy' | 'medium' | 'hard';
 export function QuestionGenerator() {
     const [isGenerating, setIsGenerating] = useState(false);
     const [generatedQuestions, setGeneratedQuestions] = useState<Question[]>([]);
-    const [sourceImage, setSourceImage] = useState<string | null>(null);
+    const [sourceFile, setSourceFile] = useState<string | null>(null);
     const [numQuestions, setNumQuestions] = useState(5);
     const [isInteractive, setIsInteractive] = useState(true);
     const [difficulty, setDifficulty] = useState<Difficulty>('medium');
@@ -34,26 +34,16 @@ export function QuestionGenerator() {
 
         setFileName(file.name);
         setGeneratedQuestions([]);
-        setSourceImage(null);
+        setSourceFile(null);
 
         const isPdf = file.type === 'application/pdf';
         const isImage = file.type.startsWith('image/');
 
-        if (isPdf) {
-            toast({
-                variant: 'destructive',
-                title: 'ملفات PDF غير مدعومة حاليًا',
-                description: 'هذه الميزة تدعم تحليل الصور فقط في الوقت الحالي.',
-            });
-            setFileName('');
-            return;
-        }
-
-        if (isImage) {
+        if (isImage || isPdf) {
             const reader = new FileReader();
             reader.onload = (e) => {
                 const dataUrl = e.target?.result as string;
-                setSourceImage(dataUrl);
+                setSourceFile(dataUrl);
                  toast({
                     title: `تم رفع ملف: ${file.name}`,
                     description: "الملف جاهز الآن. اضغط على زر 'توليد الأسئلة' للبدء.",
@@ -64,17 +54,18 @@ export function QuestionGenerator() {
              toast({
                 variant: 'destructive',
                 title: 'نوع ملف غير مدعوم',
-                description: 'الرجاء رفع ملف صورة.',
+                description: 'الرجاء رفع ملف صورة أو PDF.',
             });
+            setFileName('');
         }
     };
 
     const handleGenerateQuestions = async () => {
-        if (!sourceImage) {
+        if (!sourceFile) {
             toast({
                 variant: 'destructive',
-                title: 'لا يوجد ملف صورة',
-                description: 'الرجاء رفع صورة أولاً.',
+                title: 'لا يوجد ملف',
+                description: 'الرجاء رفع صورة أو ملف PDF أولاً.',
             });
             return;
         }
@@ -84,8 +75,8 @@ export function QuestionGenerator() {
 
         try {
             const result = await generateQuestions({
-                text: "Analyze the attached image to generate questions.", // Instruction for the AI
-                image: sourceImage,
+                text: "Analyze the attached file to generate questions.", // Instruction for the AI
+                image: sourceFile,
                 language: 'ar',
                 numQuestions: numQuestions,
                 interactive: isInteractive,
@@ -130,18 +121,18 @@ export function QuestionGenerator() {
                                 <span className="font-semibold text-primary">{fileName}</span>
                             ) : (
                                 <>
-                                    <span className="font-semibold text-primary">انقر للاختيار</span> أو اسحب وأفلت صورة هنا
+                                    <span className="font-semibold text-primary">انقر للاختيار</span> أو اسحب وأفلت صورة أو PDF هنا
                                 </>
                             )}
                         </p>
-                        <p className="text-xs text-muted-foreground">PNG, JPG, GIF</p>
+                        <p className="text-xs text-muted-foreground">PDF, PNG, JPG, GIF</p>
                     </div>
                 </div>
                  <Input
                     id="file-upload-qg"
                     ref={fileInputRef}
                     type="file"
-                    accept="image/*"
+                    accept="image/*,.pdf"
                     className="hidden"
                     onChange={handleFileChange}
                 />
@@ -199,7 +190,7 @@ export function QuestionGenerator() {
                 </Accordion>
 
 
-                <Button onClick={handleGenerateQuestions} disabled={isGenerating || !sourceImage} className="w-full text-lg py-6">
+                <Button onClick={handleGenerateQuestions} disabled={isGenerating || !sourceFile} className="w-full text-lg py-6">
                     {isGenerating ? (
                         <>
                             <Loader2 className="ml-2 h-5 w-5 animate-spin" />

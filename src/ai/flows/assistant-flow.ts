@@ -18,6 +18,9 @@ const MessageSchema = z.object({
 const AssistantInputSchema = z.object({
   prompt: z.string().describe('The user\'s latest message.'),
   history: z.array(MessageSchema).describe('The conversation history.'),
+   file: z.object({
+    url: z.string().describe("A data URI of the file. Expected format: 'data:<mimetype>;base64,<encoded_data>'."),
+  }).optional().describe('An optional file (image, pdf) to include with the prompt.'),
 });
 export type AssistantInput = z.infer<typeof AssistantInputSchema>;
 
@@ -39,7 +42,7 @@ const assistantFlow = ai.defineFlow(
     outputSchema: AssistantOutputSchema,
   },
   async input => {
-    const {history, prompt} = input;
+    const {history, prompt, file} = input;
 
     const systemPrompt = `You are Medo.Ai, a helpful and versatile AI assistant.
 Your capabilities include:
@@ -51,8 +54,13 @@ Your capabilities include:
 
 Engage in a friendly and helpful conversation. Your responses should be in Arabic.`;
 
+    const fullPrompt: any[] = [{ text: prompt }];
+    if (file) {
+      fullPrompt.unshift({ media: { url: file.url } });
+    }
+
     const {text} = await ai.generate({
-      prompt: prompt,
+      prompt: fullPrompt,
       history: [
         {role: 'user', content: [{text: systemPrompt}]},
         {role: 'model', content: [{text: 'مرحبًا! أنا مساعد الذكاء الاصطناعي Medo.Ai. كيف يمكنني مساعدتك اليوم؟'}]},

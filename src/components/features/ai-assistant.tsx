@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/componen
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Bot, User, Paperclip, Send, Loader2 } from 'lucide-react';
+import { Bot, User, Paperclip, Send, Loader2, Image as ImageIcon, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
@@ -16,10 +16,17 @@ interface Message {
     content: { text: string }[];
 }
 
+interface AttachedFile {
+    name: string;
+    url: string; // data URI
+    type: string;
+}
+
 export function AiAssistant() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [attachedFile, setAttachedFile] = useState<AttachedFile | null>(null);
     const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -35,23 +42,28 @@ export function AiAssistant() {
 
     const handleSendMessage = async (e?: React.FormEvent) => {
         e?.preventDefault();
-        if (!input.trim()) return;
+        if (!input.trim() && !attachedFile) return;
+
+        let promptText = input;
+        if (attachedFile && !input.trim()) {
+            promptText = `اشرح هذا الملف: ${attachedFile.name}`;
+        }
 
         const userMessage: Message = {
             role: 'user',
-            content: [{ text: input }],
+            content: [{ text: promptText }],
         };
 
         const newMessages: Message[] = [...messages, userMessage];
         setMessages(newMessages);
-        const currentInput = input;
         setInput('');
         setIsLoading(true);
 
         try {
              const result = await askAssistant({
-                prompt: currentInput,
-                history: messages, 
+                prompt: promptText,
+                history: messages,
+                file: attachedFile ? { url: attachedFile.url } : undefined,
             });
 
             if (result && result.response) {
@@ -75,17 +87,47 @@ export function AiAssistant() {
             setMessages(messages);
         } finally {
             setIsLoading(false);
+            setAttachedFile(null); // Clear file after sending
+            if (fileInputRef.current) {
+                fileInputRef.current.value = "";
+            }
         }
     };
 
     const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
-            toast({
-                title: 'تم رفع الملف',
-                description: `"${file.name}". يمكنك الآن طرح أسئلة حوله.`,
-            });
-            // In future steps, we will process this file.
+            // For now, only allow images. PDF processing will be a future step.
+            if (!file.type.startsWith('image/')) {
+                toast({
+                    variant: 'destructive',
+                    title: 'نوع ملف غير مدعوم',
+                    description: 'حاليًا، يمكنك رفع الصور فقط.',
+                });
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const url = e.target?.result as string;
+                setAttachedFile({
+                    name: file.name,
+                    url: url,
+                    type: file.type,
+                });
+                toast({
+                    title: 'تم إرفاق الملف',
+                    description: `"${file.name}". اكتب رسالة أو اضغط إرسال لتحليله.`,
+                });
+            };
+            reader.onerror = (error) => {
+                console.error("File reading error:", error);
+                toast({
+                    variant: 'destructive',
+                    title: 'خطأ في قراءة الملف',
+                });
+            }
+            reader.readAsDataURL(file);
         }
     };
 
@@ -99,7 +141,7 @@ export function AiAssistant() {
                                 <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
                                     <Bot className="w-16 h-16 mb-4" />
                                     <h2 className="text-2xl font-semibold">المساعد الذكي</h2>
-                                    <p>اطرح سؤالاً، أو ارفع صورة أو ملف PDF لبدء المحادثة.</p>
+                                    <p>اطرح سؤالاً، أو ارفع صورة لبدء المحادثة.</p>
                                 </div>
                             )}
                             {messages.map((message, index) => (
@@ -145,6 +187,21 @@ export function AiAssistant() {
                         </div>
                     </ScrollArea>
                     <div className="border-t p-4">
+                         {attachedFile && (
+                            <div className="relative mb-2 p-2 border rounded-md flex items-center gap-2 text-sm bg-muted/50">
+                                <ImageIcon className="w-5 h-5 text-muted-foreground" />
+                                <span className="truncate">{attachedFile.name}</span>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 ml-auto"
+                                    onClick={() => setAttachedFile(null)}
+                                >
+                                    <X className="w-4 h-4" />
+                                </Button>
+                            </div>
+                        )}
                         <form onSubmit={handleSendMessage} className="flex items-center gap-2">
                             <Input
                                 ref={fileInputRef}
@@ -158,6 +215,7 @@ export function AiAssistant() {
                                 variant="outline"
                                 size="icon"
                                 onClick={() => fileInputRef.current?.click()}
+                                disabled={isLoading || !!attachedFile}
                             >
                                 <Paperclip className="h-5 w-5" />
                                 <span className="sr-only">رفع ملف</span>
@@ -175,7 +233,7 @@ export function AiAssistant() {
                                     }
                                 }}
                             />
-                            <Button type="submit" size="icon" disabled={isLoading || !input.trim()}>
+                            <Button type="submit" size="icon" disabled={isLoading || (!input.trim() && !attachedFile)}>
                                 {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
                                 <span className="sr-only">إرسال</span>
                             </Button>

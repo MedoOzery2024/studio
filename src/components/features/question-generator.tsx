@@ -103,6 +103,44 @@ export function QuestionGenerator() {
             setIsGenerating(false);
         }
     };
+
+    const handleDownload = () => {
+        if (generatedQuestions.length === 0) {
+            toast({
+                variant: "destructive",
+                title: "لا توجد أسئلة للتنزيل",
+                description: "الرجاء توليد الأسئلة أولاً.",
+            });
+            return;
+        }
+
+        let content = `الأسئلة التي تم إنشاؤها من ملف: ${fileName}\n\n`;
+        content += "========================================\n\n";
+
+        generatedQuestions.forEach((q, index) => {
+            content += `سؤال ${index + 1}: ${q.question}\n`;
+            if (q.isInteractive && q.options && q.options.length > 0) {
+                content += "الخيارات:\n";
+                q.options.forEach(opt => {
+                    content += `- ${opt}\n`;
+                });
+            }
+            content += `الإجابة الصحيحة: ${q.correctAnswer}\n`;
+            content += `الشرح: ${q.explanation}\n\n`;
+            content += "----------------------------------------\n\n";
+        });
+
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        const downloadFileName = (fileName ? fileName.split('.').slice(0, -1).join('.') : 'أسئلة') + '.txt';
+        link.download = downloadFileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
     
     return (
         <Card className="w-full max-w-4xl mx-auto shadow-lg bg-card border-none">
@@ -240,7 +278,7 @@ export function QuestionGenerator() {
                         ))}
                     </Accordion>
                     <div className="flex w-full justify-end items-center pt-4 border-t border-border mt-4 gap-2">
-                       <Button variant="outline">
+                       <Button variant="outline" onClick={handleDownload}>
                            <Download className="ml-2"/>
                            تنزيل
                        </Button>

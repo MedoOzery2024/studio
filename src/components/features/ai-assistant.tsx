@@ -52,15 +52,6 @@ export function AiAssistant() {
             promptText = `اشرح هذا الملف: ${currentFile.name}`;
         }
         
-        if (currentFile?.type === 'application/pdf') {
-            toast({
-                variant: 'destructive',
-                title: 'معالجة PDF غير مدعومة بعد',
-                description: 'جاري العمل على إضافة دعم تحليل ملفات PDF. يمكنك تحليل الصور حاليًا.',
-            });
-            return;
-        }
-
         const userMessage: Message = {
             role: 'user',
             content: [{ text: promptText }],

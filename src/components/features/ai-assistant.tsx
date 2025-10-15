@@ -42,20 +42,22 @@ export function AiAssistant() {
 
     const handleSendMessage = async (e?: React.FormEvent) => {
         e?.preventDefault();
-        if (!input.trim() && !attachedFile) return;
+        const currentInput = input.trim();
+        const currentFile = attachedFile;
 
-        let promptText = input;
-        if (attachedFile && !input.trim()) {
-            promptText = `اشرح هذا الملف: ${attachedFile.name}`;
+        if (!currentInput && !currentFile) return;
+
+        let promptText = currentInput;
+        if (currentFile && !currentInput) {
+            promptText = `اشرح هذا الملف: ${currentFile.name}`;
         }
         
-        if (attachedFile?.type === 'application/pdf') {
+        if (currentFile?.type === 'application/pdf') {
             toast({
                 variant: 'destructive',
                 title: 'معالجة PDF غير مدعومة بعد',
                 description: 'جاري العمل على إضافة دعم تحليل ملفات PDF. يمكنك تحليل الصور حاليًا.',
             });
-            setIsLoading(false);
             return;
         }
 
@@ -64,15 +66,15 @@ export function AiAssistant() {
             content: [{ text: promptText }],
         };
 
-        const newMessages: Message[] = [...messages, userMessage];
-        setMessages(newMessages);
+        setMessages(prev => [...prev, userMessage]);
         setInput('');
+        setAttachedFile(null);
         setIsLoading(true);
 
         try {
              const result = await askAssistant({
                 prompt: promptText,
-                file: attachedFile ? { url: attachedFile.url } : undefined,
+                file: currentFile ? { url: currentFile.url } : undefined,
             });
 
             if (result && result.response) {
@@ -87,16 +89,18 @@ export function AiAssistant() {
 
         } catch (error) {
             console.error("AI Assistant Error:", error);
+            const errorMessage: Message = {
+                role: 'model',
+                content: [{ text: "حدث خطأ: فشل الاتصال بالمساعد الذكي. الرجاء المحاولة مرة أخرى." }],
+            };
+            setMessages(prev => [...prev, errorMessage]);
             toast({
                 variant: 'destructive',
                 title: 'حدث خطأ',
                 description: 'فشل الاتصال بالمساعد الذكي. الرجاء المحاولة مرة أخرى.',
             });
-             // Rollback to previous state on error
-            setMessages(messages);
         } finally {
             setIsLoading(false);
-            setAttachedFile(null); 
             if (fileInputRef.current) {
                 fileInputRef.current.value = "";
             }

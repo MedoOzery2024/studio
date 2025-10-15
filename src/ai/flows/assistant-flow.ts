@@ -10,11 +10,6 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-const MessageSchema = z.object({
-  role: z.enum(['user', 'model']),
-  content: z.array(z.object({text: z.string()})),
-});
-
 const AssistantInputSchema = z.object({
   prompt: z.string().describe('The user\'s latest message.'),
    file: z.object({
@@ -56,12 +51,14 @@ Engage in a friendly and helpful conversation. Your responses should be in Arabi
     const model = ai.model('gemini-pro');
 
     const fullPrompt: any[] = [
-        {text: systemPrompt} // Add system context
+      // The system prompt provides context but is not a "message" in the chat history.
+      // It's better to prepend it to the user's text prompt.
     ];
     if (file) {
       fullPrompt.push({ media: { url: file.url } });
     }
-    fullPrompt.push({ text: prompt });
+    // Combine system prompt and user prompt into a single text block
+    fullPrompt.push({ text: `${systemPrompt}\n\nUser Question: ${prompt}` });
     
     const {text} = await ai.generate({
       model,

@@ -5,63 +5,62 @@ import { SpeechToTextConverter } from '@/components/features/speech-to-text-conv
 import { AiAssistant } from '@/components/features/ai-assistant';
 import { Toaster } from "@/components/ui/toaster"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ImageIcon, BrainCircuit, Mic, Bot } from 'lucide-react';
+import { ImageIcon, BrainCircuit, Mic, Bot, FileText } from 'lucide-react';
 
 export default function Home() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4 font-body">
-      <header className="absolute top-8 text-center">
-        <h1 className="text-5xl font-bold font-headline text-foreground">
-          Medo.Ai
-        </h1>
+    <div className="dark flex flex-col items-center min-h-screen bg-background text-foreground p-4 md:p-8 font-body">
+      <header className="w-full max-w-6xl mx-auto flex justify-between items-center py-4">
+        <div className="flex items-center gap-2">
+            <FileText className="w-8 h-8 text-primary" />
+            <h1 className="text-3xl font-bold tracking-tighter text-primary">
+              Medo.Ai
+            </h1>
+        </div>
+        <div className="text-right">
+          <p className="text-sm text-muted-foreground">مطور الموقع</p>
+          <p className="font-bold text-lg text-foreground">
+            محمود محمد محمود أبو الفتوح أحمد العزيري
+          </p>
+        </div>
       </header>
 
-      <main className="w-full max-w-4xl mt-32 mb-24 space-y-8">
+      <main className="w-full max-w-6xl flex-grow mt-8 mb-8 flex flex-col">
         <ClockDisplay />
         
-        <Tabs defaultValue="image-converter" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="image-converter">
-              <ImageIcon className="w-5 h-5 mr-2" />
-              تحويل الصور إلى PDF
-            </TabsTrigger>
-            <TabsTrigger value="question-generator">
-              <BrainCircuit className="w-5 h-5 mr-2" />
-              توليد الأسئلة
-            </TabsTrigger>
-            <TabsTrigger value="speech-to-text">
-              <Mic className="w-5 h-5 mr-2" />
-              تحويل الكلام إلى نص
-            </TabsTrigger>
-             <TabsTrigger value="ai-assistant">
-              <Bot className="w-5 h-5 mr-2" />
+        <Tabs defaultValue="ai-assistant" className="w-full mt-8 flex-grow flex flex-col">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mx-auto max-w-2xl bg-card border border-border">
+            <TabsTrigger value="ai-assistant">
+              <Bot className="w-5 h-5 ml-2" />
               المساعد الذكي
             </TabsTrigger>
+            <TabsTrigger value="speech-to-text">
+              <Mic className="w-5 h-5 ml-2" />
+              تحويل الكلام إلى نص
+            </TabsTrigger>
+            <TabsTrigger value="question-generator">
+              <BrainCircuit className="w-5 h-5 ml-2" />
+              توليد الأسئلة
+            </TabsTrigger>
+            <TabsTrigger value="image-converter">
+              <ImageIcon className="w-5 h-5 ml-2" />
+              تحويل الصور إلى PDF
+            </TabsTrigger>
           </TabsList>
-          <TabsContent value="image-converter">
-            <ImageToPdfConverter />
-          </TabsContent>
-          <TabsContent value="question-generator">
-            <QuestionGenerator />
-          </TabsContent>
-           <TabsContent value="speech-to-text">
-            <SpeechToTextConverter />
-          </TabsContent>
-          <TabsContent value="ai-assistant">
+          <TabsContent value="ai-assistant" className="flex-grow">
             <AiAssistant />
           </TabsContent>
+          <TabsContent value="speech-to-text" className="flex-grow">
+            <SpeechToTextConverter />
+          </TabsContent>
+          <TabsContent value="question-generator" className="flex-grow">
+            <QuestionGenerator />
+          </TabsContent>
+          <TabsContent value="image-converter" className="flex-grow">
+            <ImageToPdfConverter />
+          </TabsContent>
         </Tabs>
-
       </main>
-
-      <footer className="absolute bottom-8 text-center px-4" dir="rtl">
-        <p className="text-base md:text-lg text-foreground/80">
-          مطور الموقع:{' '}
-          <span className="font-bold text-accent">
-            محمود محمد محمود أبو الفتوح أحمد العزيري
-          </span>
-        </p>
-      </footer>
       <Toaster />
     </div>
   );

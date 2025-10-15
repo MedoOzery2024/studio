@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Bot, User, Paperclip, Send, Loader2, File as FileIcon, X } from 'lucide-react';
+import { Bot, User, Paperclip, Send, Loader2, File as FileIcon, X, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { askAssistant } from '@/ai/flows/assistant-flow';
 
@@ -94,11 +94,10 @@ export function AiAssistant() {
                 title: 'حدث خطأ',
                 description: 'فشل الاتصال بالمساعد الذكي. الرجاء المحاولة مرة أخرى.',
             });
-            // Optional: Revert the message list if the API call fails
             setMessages(messages);
         } finally {
             setIsLoading(false);
-            setAttachedFile(null); // Clear file after sending
+            setAttachedFile(null); 
             if (fileInputRef.current) {
                 fileInputRef.current.value = "";
             }
@@ -142,15 +141,15 @@ export function AiAssistant() {
     };
 
     return (
-        <Card className="w-full max-w-4xl shadow-2xl bg-card/80 backdrop-blur-sm border-primary/10 border-t-0 rounded-t-none">
-            <CardContent className="pt-6">
-                <div className="flex flex-col h-[60vh]">
+        <Card className="w-full h-full flex flex-col shadow-lg bg-card border-none">
+            <CardContent className="pt-6 flex flex-col flex-grow">
+                <div className="flex flex-col h-full">
                     <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
-                        <div className="space-y-4">
+                        <div className="space-y-6">
                             {messages.length === 0 && (
-                                <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
-                                    <Bot className="w-16 h-16 mb-4" />
-                                    <h2 className="text-2xl font-semibold">المساعد الذكي</h2>
+                                <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground pt-16">
+                                    <Sparkles className="w-16 h-16 mb-4 text-primary" />
+                                    <h2 className="text-2xl font-semibold text-foreground">المساعد الذكي</h2>
                                     <p>اطرح سؤالاً، أو ارفع صورة/ملف PDF لبدء المحادثة.</p>
                                 </div>
                             )}
@@ -163,16 +162,16 @@ export function AiAssistant() {
                                     )}
                                 >
                                     {message.role === 'model' && (
-                                        <Avatar className="w-8 h-8 border">
-                                            <AvatarFallback><Bot className="w-5 h-5"/></AvatarFallback>
+                                        <Avatar className="w-8 h-8 border-2 border-primary">
+                                            <AvatarFallback className='bg-primary/20 text-primary'><Bot className="w-5 h-5"/></AvatarFallback>
                                         </Avatar>
                                     )}
                                     <div
                                         className={cn(
-                                            "max-w-md rounded-lg px-4 py-2",
+                                            "max-w-xl rounded-lg px-4 py-3 shadow-md",
                                             message.role === 'user'
                                                 ? 'bg-primary text-primary-foreground'
-                                                : 'bg-muted'
+                                                : 'bg-secondary'
                                         )}
                                     >
                                         <p className="text-sm whitespace-pre-wrap">{message.content[0].text}</p>
@@ -186,20 +185,20 @@ export function AiAssistant() {
                             ))}
                              {isLoading && (
                                 <div className="flex items-start gap-3 justify-start">
-                                     <Avatar className="w-8 h-8 border">
-                                        <AvatarFallback><Bot className="w-5 h-5"/></AvatarFallback>
+                                     <Avatar className="w-8 h-8 border-2 border-primary">
+                                        <AvatarFallback className='bg-primary/20 text-primary'><Bot className="w-5 h-5"/></AvatarFallback>
                                     </Avatar>
-                                    <div className="max-w-md rounded-lg px-4 py-2 bg-muted flex items-center">
-                                        <Loader2 className="w-5 h-5 animate-spin"/>
+                                    <div className="max-w-md rounded-lg px-4 py-3 bg-secondary flex items-center shadow-md">
+                                        <Loader2 className="w-5 h-5 animate-spin text-primary"/>
                                     </div>
                                 </div>
                             )}
                         </div>
                     </ScrollArea>
-                    <div className="border-t p-4">
+                    <div className="border-t border-border mt-auto p-4 bg-card">
                          {attachedFile && (
-                            <div className="relative mb-2 p-2 border rounded-md flex items-center gap-2 text-sm bg-muted/50">
-                                <FileIcon className="w-5 h-5 text-muted-foreground" />
+                            <div className="relative mb-2 p-2 border border-dashed border-primary rounded-md flex items-center gap-2 text-sm bg-secondary">
+                                <FileIcon className="w-5 h-5 text-primary" />
                                 <span className="truncate">{attachedFile.name}</span>
                                 <Button
                                     type="button"
@@ -226,6 +225,7 @@ export function AiAssistant() {
                                 size="icon"
                                 onClick={() => fileInputRef.current?.click()}
                                 disabled={isLoading || !!attachedFile}
+                                className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
                             >
                                 <Paperclip className="h-5 w-5" />
                                 <span className="sr-only">رفع ملف</span>
@@ -234,7 +234,7 @@ export function AiAssistant() {
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 placeholder="اكتب رسالتك هنا أو ارفع ملفًا..."
-                                className="flex-1 text-right"
+                                className="flex-1 text-right bg-secondary focus-visible:ring-primary"
                                 dir="rtl"
                                 disabled={isLoading}
                                 onKeyDown={(e) => {

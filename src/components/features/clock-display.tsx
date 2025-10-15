@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Calendar, Languages } from 'lucide-react';
+import { Calendar, Languages, Clock } from 'lucide-react';
 
 export function ClockDisplay() {
   const [time, setTime] = useState('');
@@ -44,30 +44,32 @@ export function ClockDisplay() {
 
   if (!isMounted) {
     return (
-       <Card className="w-full max-w-2xl p-6 md:p-10 shadow-2xl bg-card/80 backdrop-blur-sm border-primary/10">
-         <CardContent className="flex flex-col items-center justify-center gap-6 p-0 animate-pulse">
-            <div className="h-20 w-3/4 rounded-md bg-muted-foreground/10"></div>
-            <div className="w-full h-[1px] bg-border my-2"></div>
-            <div className="h-8 w-1/2 rounded-md bg-muted-foreground/10"></div>
-            <div className="h-6 w-1/3 rounded-md bg-muted-foreground/10"></div>
+       <Card className="w-full max-w-3xl mx-auto p-6 md:p-8 shadow-lg bg-card border border-border">
+         <CardContent className="flex flex-col items-center justify-center gap-4 p-0 animate-pulse">
+            <div className="h-16 w-3/4 rounded-md bg-secondary"></div>
+            <div className="w-full h-[1px] bg-border my-1"></div>
+            <div className="h-8 w-1/2 rounded-md bg-secondary"></div>
+            <div className="h-6 w-1/3 rounded-md bg-secondary"></div>
          </CardContent>
        </Card>
     );
   }
 
   return (
-    <Card className="w-full max-w-2xl p-6 md:p-10 shadow-2xl bg-card/80 backdrop-blur-sm border-primary/10">
-      <CardContent className="flex flex-col items-center justify-center gap-6 p-0">
-        <div 
-          className="text-6xl md:text-8xl font-bold text-sky-blue font-mono tracking-tight"
-          aria-live="polite"
-        >
-          {time}
+    <Card className="w-full max-w-3xl mx-auto p-6 md:p-8 shadow-lg bg-card border border-border">
+      <CardContent className="flex flex-col items-center justify-center gap-4 p-0">
+        <div className='flex items-center gap-4'>
+            <div 
+            className="text-6xl md:text-7xl font-bold text-foreground font-mono tracking-wider"
+            aria-live="polite"
+            >
+            {time}
+            </div>
         </div>
 
-        <div className="w-full h-[1px] bg-border my-2"></div>
+        <div className="w-full h-[1px] bg-border my-1"></div>
 
-        <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8 text-lg md:text-xl text-foreground/90">
+        <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8 text-base md:text-lg text-muted-foreground">
           <div className="flex items-center gap-2">
             <Calendar className="w-5 h-5 text-primary" />
             <span>{gregorianDate}</span>
@@ -78,7 +80,7 @@ export function ClockDisplay() {
           </div>
         </div>
 
-        <div className="text-xl md:text-2xl font-medium text-foreground">
+        <div className="text-xl md:text-2xl font-semibold text-primary/90">
           {dayOfWeek}
         </div>
       </CardContent>

@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Upload, FileDown, Trash2, X, Loader2, FileText, ImageIcon } from 'lucide-react';
+import { Upload, FileDown, Trash2, X, Loader2, FileText } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import Image from 'next/image';
 
 interface PDFFile {
   name: string;
@@ -26,6 +27,10 @@ export function ImageToPdfConverter() {
       const files = Array.from(event.target.files);
       const imagePromises = files.map(file => {
         return new Promise<string>((resolve, reject) => {
+          if (!file.type.startsWith('image/')) {
+            reject(new Error('File is not an image.'));
+            return;
+          }
           const reader = new FileReader();
           reader.onload = e => resolve(e.target?.result as string);
           reader.onerror = reject;
@@ -36,13 +41,17 @@ export function ImageToPdfConverter() {
       Promise.all(imagePromises)
         .then(base64Images => {
             setSelectedImages(prev => [...prev, ...base64Images]);
+            toast({
+              title: "تم إضافة الصور",
+              description: `تم إضافة ${base64Images.length} صورة بنجاح.`
+            });
         })
         .catch(error => {
           console.error("Error reading files:", error);
           toast({
             variant: "destructive",
-            title: "خطأ في قراءة الصورة",
-            description: "حدث خطأ أثناء محاولة تحميل إحدى الصور.",
+            title: "ملف غير صالح",
+            description: "أحد الملفات لم يكن صورة. الرجاء تحديد ملفات صور فقط.",
           });
         });
     }
@@ -73,30 +82,20 @@ export function ImageToPdfConverter() {
     setIsGenerating(true);
     
     try {
-      // Dynamically import jspdf
       const { default: jsPDF } = await import('jspdf');
-      
       const doc = new jsPDF();
       
       for (let i = 0; i < selectedImages.length; i++) {
-        if (i > 0) {
-          doc.addPage();
-        }
-        const img = new Image();
+        if (i > 0) doc.addPage();
+        const img = document.createElement('img');
         img.src = selectedImages[i];
-        await new Promise(resolve => {
-            img.onload = resolve;
-        });
+        await new Promise(resolve => { img.onload = resolve; });
 
         const pageWidth = doc.internal.pageSize.getWidth();
         const pageHeight = doc.internal.pageSize.getHeight();
-        const imgWidth = img.width;
-        const imgHeight = img.height;
-        
-        const ratio = Math.min(pageWidth / imgWidth, pageHeight / imgHeight);
-        const newWidth = imgWidth * ratio;
-        const newHeight = imgHeight * ratio;
-
+        const ratio = Math.min(pageWidth / img.width, pageHeight / img.height);
+        const newWidth = img.width * ratio;
+        const newHeight = img.height * ratio;
         const x = (pageWidth - newWidth) / 2;
         const y = (pageHeight - newHeight) / 2;
 
@@ -109,9 +108,7 @@ export function ImageToPdfConverter() {
       setGeneratedPdfs(prev => [...prev, { name: `${pdfName.trim()}.pdf`, url: pdfUrl }]);
       setPdfName('');
       setSelectedImages([]);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+      if (fileInputRef.current) fileInputRef.current.value = "";
 
       toast({
         title: "تم إنشاء ملف PDF بنجاح!",
@@ -141,32 +138,35 @@ export function ImageToPdfConverter() {
   };
 
   return (
-    <Card className="w-full max-w-4xl shadow-2xl bg-card/80 backdrop-blur-sm border-primary/10 border-t-0 rounded-t-none">
-      <CardContent className="space-y-6 pt-6">
+    <Card className="w-full max-w-4xl mx-auto shadow-lg bg-card border-none">
+      <CardHeader>
+        <CardTitle className="text-center text-2xl font-bold text-primary">تحويل الصور إلى PDF</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
         <div className="space-y-2">
-            <Label htmlFor="pdfName" className="text-right w-full block">اسم ملف PDF</Label>
+            <Label htmlFor="pdfName" className="text-right w-full block font-semibold text-foreground/80">اسم ملف PDF</Label>
             <Input
                 id="pdfName"
                 value={pdfName}
                 onChange={(e) => setPdfName(e.target.value)}
                 placeholder="أدخل اسم الملف هنا..."
-                className="text-right"
+                className="text-right bg-secondary focus-visible:ring-primary"
                 dir="rtl"
             />
         </div>
 
         <div className="space-y-4">
-            <Label htmlFor="image-upload" className="text-right w-full block">اختر الصور</Label>
+            <Label htmlFor="image-upload" className="text-right w-full block font-semibold text-foreground/80">اختر الصور</Label>
             <div 
-                className="flex justify-center items-center w-full px-6 py-10 border-2 border-dashed rounded-md cursor-pointer hover:border-primary transition-colors"
+                className="flex justify-center items-center w-full px-6 py-10 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary hover:bg-secondary transition-colors"
                 onClick={() => fileInputRef.current?.click()}
             >
                 <div className="text-center">
-                    <Upload className="mx-auto h-12 w-12 text-gray-400"/>
+                    <Upload className="mx-auto h-12 w-12 text-muted-foreground"/>
                     <p className="mt-2 text-sm text-foreground">
                         <span className="font-semibold text-primary">انقر للاختيار</span> أو اسحب وأفلت الصور هنا
                     </p>
-                    <p className="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
+                    <p className="text-xs text-muted-foreground">PNG, JPG, GIF</p>
                 </div>
             </div>
             <Input
@@ -181,35 +181,35 @@ export function ImageToPdfConverter() {
         </div>
 
         {selectedImages.length > 0 && (
-            <div className="space-y-2">
-                <h3 className="text-lg font-medium text-right">الصور المحددة:</h3>
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
+            <div className="space-y-3">
+                <h3 className="text-lg font-medium text-right text-foreground">الصور المحددة ({selectedImages.length}):</h3>
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4 p-4 rounded-lg bg-secondary">
                 {selectedImages.map((imgSrc, index) => (
-                    <div key={index} className="relative group">
-                    <img src={imgSrc} alt={`Selected ${index + 1}`} className="rounded-md w-full h-24 object-cover" />
-                    <Button
+                    <div key={index} className="relative group aspect-square">
+                      <Image src={imgSrc} alt={`Selected ${index + 1}`} fill className="rounded-md object-cover" />
+                      <Button
                         variant="destructive"
                         size="icon"
                         className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
                         onClick={() => removeImage(index)}
-                    >
+                      >
                         <X className="h-4 w-4" />
-                    </Button>
+                      </Button>
                     </div>
                 ))}
                 </div>
             </div>
         )}
 
-        <Button onClick={generatePdf} disabled={isGenerating || selectedImages.length === 0} className="w-full">
+        <Button onClick={generatePdf} disabled={isGenerating || selectedImages.length === 0} className="w-full text-lg py-6">
             {isGenerating ? (
                 <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="ml-2 h-5 w-5 animate-spin" />
                     جاري الإنشاء...
                 </>
             ) : (
                 <>
-                    <FileText className="mr-2 h-4 w-4" />
+                    <FileText className="ml-2 h-5 w-5" />
                     إنشاء ملف PDF
                 </>
             )}
@@ -217,11 +217,11 @@ export function ImageToPdfConverter() {
       </CardContent>
       {generatedPdfs.length > 0 && (
         <CardFooter className="flex flex-col items-start gap-4">
-            <h3 className="text-lg font-medium text-right w-full border-t pt-4">الملفات المنشأة</h3>
+            <h3 className="text-lg font-medium text-right w-full border-t border-border pt-4 text-primary">الملفات المنشأة</h3>
             <ul className="w-full space-y-2">
                 {generatedPdfs.map((pdf, index) => (
-                <li key={index} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
-                    <span className="font-mono text-sm">{pdf.name}</span>
+                <li key={index} className="flex items-center justify-between p-3 rounded-lg bg-secondary">
+                    <span className="font-mono text-sm text-foreground">{pdf.name}</span>
                     <div className="flex gap-2">
                         <a href={pdf.url} download={pdf.name}>
                             <Button variant="outline" size="icon">

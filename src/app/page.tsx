@@ -1,4 +1,6 @@
 import { ClockDisplay } from '@/components/features/clock-display';
+import { ImageToPdfConverter } from '@/components/features/image-to-pdf-converter';
+import { Toaster } from "@/components/ui/toaster"
 
 export default function Home() {
   return (
@@ -9,8 +11,9 @@ export default function Home() {
         </h1>
       </header>
 
-      <main>
+      <main className="w-full max-w-4xl mt-32 mb-24 space-y-8">
         <ClockDisplay />
+        <ImageToPdfConverter />
       </main>
 
       <footer className="absolute bottom-8 text-center px-4" dir="rtl">
@@ -21,6 +24,7 @@ export default function Home() {
           </span>
         </p>
       </footer>
+      <Toaster />
     </div>
   );
 }

@@ -1,13 +1,112 @@
+"use client";
+
+import { useState } from 'react';
 import { ClockDisplay } from '@/components/features/clock-display';
 import { ImageToPdfConverter } from '@/components/features/image-to-pdf-converter';
 import { QuestionGenerator } from '@/components/features/question-generator';
 import { SpeechToTextConverter } from '@/components/features/speech-to-text-converter';
 import { AiAssistant } from '@/components/features/ai-assistant';
 import { Toaster } from "@/components/ui/toaster"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ImageIcon, BrainCircuit, Mic, Bot, FileText } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { ImageIcon, BrainCircuit, Mic, Bot, FileText, ArrowRight } from 'lucide-react';
+
+type Feature = 'ai-assistant' | 'speech-to-text' | 'question-generator' | 'image-converter';
+
+interface FeatureCardProps {
+  id: Feature;
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  onSelect: (feature: Feature) => void;
+}
+
+const FeatureCard = ({ id, title, description, icon, onSelect }: FeatureCardProps) => (
+  <Card 
+    className="bg-card hover:bg-secondary border-border hover:border-primary transition-all duration-300 cursor-pointer group flex flex-col h-full"
+    onClick={() => onSelect(id)}
+  >
+    <CardHeader className="flex flex-row items-center gap-4">
+      <div className="bg-primary/10 text-primary p-3 rounded-lg">
+        {icon}
+      </div>
+      <CardTitle className="text-xl text-foreground">{title}</CardTitle>
+    </CardHeader>
+    <CardContent className="flex-grow">
+      <CardDescription>{description}</CardDescription>
+    </CardContent>
+    <div className="p-6 pt-0">
+        <Button variant="ghost" className="p-0 text-primary group-hover:translate-x-2 transition-transform">
+            <span>ابدأ الآن</span>
+            <ArrowRight className="mr-2 w-4 h-4" />
+        </Button>
+    </div>
+  </Card>
+);
+
+const featureMap = {
+    'ai-assistant': { 
+        title: "المساعد الذكي", 
+        description: "تحدث مع الذكاء الاصطناعي، ارفع ملفات، واطرح أسئلة معقدة في مختلف العلوم.",
+        icon: <Bot className="w-8 h-8" />,
+        component: <AiAssistant />
+    },
+    'speech-to-text': {
+        title: "تحويل الكلام إلى نص",
+        description: "سجل صوتك باستخدام الميكروفون، وقم بتحويله إلى نص مكتوب وتلخيصه بسهولة.",
+        icon: <Mic className="w-8 h-8" />,
+        component: <SpeechToTextConverter />
+    },
+    'question-generator': {
+        title: "توليد الأسئلة",
+        description: "ارفع ملف PDF أو صورة واستخرج منها أسئلة بمستويات صعوبة مختلفة.",
+        icon: <BrainCircuit className="w-8 h-8" />,
+        component: <QuestionGenerator />
+    },
+    'image-converter': {
+        title: "تحويل الصور إلى PDF",
+        description: "اجمع صورك المفضلة وحولها إلى ملف PDF واحد جاهز للتنزيل والمشاركة.",
+        icon: <ImageIcon className="w-8 h-8" />,
+        component: <ImageToPdfConverter />
+    }
+};
+
 
 export default function Home() {
+  const [activeFeature, setActiveFeature] = useState<Feature | null>(null);
+
+  const renderContent = () => {
+    if (activeFeature) {
+        return (
+            <div className="w-full">
+                <Button onClick={() => setActiveFeature(null)} variant="outline" className="mb-6">
+                    <ArrowRight className="ml-2 w-4 h-4" />
+                    العودة إلى القائمة الرئيسية
+                </Button>
+                {featureMap[activeFeature].component}
+            </div>
+        );
+    }
+    
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {Object.keys(featureMap).map(key => {
+                const feature = featureMap[key as Feature];
+                return (
+                    <FeatureCard 
+                        key={key}
+                        id={key as Feature}
+                        title={feature.title}
+                        description={feature.description}
+                        icon={feature.icon}
+                        onSelect={setActiveFeature}
+                    />
+                );
+            })}
+        </div>
+    );
+  }
+
   return (
     <div className="dark flex flex-col items-center min-h-screen bg-background text-foreground p-4 md:p-8 font-body">
       <header className="w-full max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center py-4 gap-4 sm:gap-0">
@@ -25,41 +124,11 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="w-full max-w-6xl flex-grow mt-8 mb-8 flex flex-col">
+      <main className="w-full max-w-6xl flex-grow mt-8 mb-8 flex flex-col items-center">
         <ClockDisplay />
-        
-        <Tabs defaultValue="ai-assistant" className="w-full mt-8 flex-grow flex flex-col">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mx-auto max-w-2xl bg-card border border-border h-auto">
-            <TabsTrigger value="ai-assistant" className="py-2.5">
-              <Bot className="w-5 h-5 ml-2" />
-              المساعد الذكي
-            </TabsTrigger>
-            <TabsTrigger value="speech-to-text" className="py-2.5">
-              <Mic className="w-5 h-5 ml-2" />
-              تحويل الكلام إلى نص
-            </TabsTrigger>
-            <TabsTrigger value="question-generator" className="py-2.5">
-              <BrainCircuit className="w-5 h-5 ml-2" />
-              توليد الأسئلة
-            </TabsTrigger>
-            <TabsTrigger value="image-converter" className="py-2.5">
-              <ImageIcon className="w-5 h-5 ml-2" />
-              تحويل الصور إلى PDF
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="ai-assistant" className="flex-grow mt-4">
-            <AiAssistant />
-          </TabsContent>
-          <TabsContent value="speech-to-text" className="flex-grow mt-4">
-            <SpeechToTextConverter />
-          </TabsContent>
-          <TabsContent value="question-generator" className="flex-grow mt-4">
-            <QuestionGenerator />
-          </TabsContent>
-          <TabsContent value="image-converter" className="flex-grow mt-4">
-            <ImageToPdfConverter />
-          </TabsContent>
-        </Tabs>
+        <div className="w-full mt-12">
+            {renderContent()}
+        </div>
       </main>
       <Toaster />
     </div>

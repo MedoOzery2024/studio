@@ -59,7 +59,7 @@ Engage in a friendly and helpful conversation. Your responses should be in Arabi
     fullPrompt.push({ text: `${systemPrompt}\n\nUser Question: ${prompt}` });
     
     const {text} = await ai.generate({
-      model: 'googleai/gemini-2.5-flash',
+      model: 'googleai/gemini-2.5-flash-image-preview',
       prompt: fullPrompt,
     });
 

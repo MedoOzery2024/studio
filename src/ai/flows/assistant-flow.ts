@@ -48,8 +48,6 @@ Your capabilities include:
 
 Engage in a friendly and helpful conversation. Your responses should be in Arabic.`;
 
-    const model = ai.model('gemini-pro');
-
     const fullPrompt: any[] = [
       // The system prompt provides context but is not a "message" in the chat history.
       // It's better to prepend it to the user's text prompt.
@@ -61,7 +59,7 @@ Engage in a friendly and helpful conversation. Your responses should be in Arabi
     fullPrompt.push({ text: `${systemPrompt}\n\nUser Question: ${prompt}` });
     
     const {text} = await ai.generate({
-      model,
+      model: 'gemini-pro',
       prompt: fullPrompt,
     });
 

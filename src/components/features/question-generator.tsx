@@ -83,17 +83,8 @@ export function QuestionGenerator() {
     };
     
     return (
-        <Card className="w-full max-w-4xl shadow-2xl bg-card/80 backdrop-blur-sm border-primary/10">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-3 text-2xl justify-center">
-                    <BrainCircuit className="w-8 h-8 text-primary" />
-                    <span>توليد الأسئلة بالذكاء الاصطناعي</span>
-                </CardTitle>
-                <CardDescription className="text-center">
-                    ارفع ملف PDF أو صور لاستخراج النص وتوليد أسئلة تفاعلية وغير تفاعلية.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
+        <Card className="w-full max-w-4xl shadow-2xl bg-card/80 backdrop-blur-sm border-primary/10 border-t-0 rounded-t-none">
+            <CardContent className="space-y-6 pt-6">
                 <div 
                     className="flex justify-center items-center w-full px-6 py-10 border-2 border-dashed rounded-md cursor-pointer hover:border-primary transition-colors"
                     onClick={() => fileInputRef.current?.click()}
@@ -113,7 +104,7 @@ export function QuestionGenerator() {
                     </div>
                 </div>
                  <Input
-                    id="file-upload"
+                    id="file-upload-qg"
                     ref={fileInputRef}
                     type="file"
                     accept=".pdf,image/*"

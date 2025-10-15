@@ -141,17 +141,8 @@ export function ImageToPdfConverter() {
   };
 
   return (
-    <Card className="w-full max-w-4xl shadow-2xl bg-card/80 backdrop-blur-sm border-primary/10">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-2xl justify-center">
-            <ImageIcon className="w-8 h-8 text-primary" />
-            <span>تحويل الصور إلى PDF</span>
-        </CardTitle>
-        <CardDescription className="text-center">
-            قم بتحميل الصور لإنشاء ملف PDF. يمكنك بعد ذلك تلخيص النص باستخدام الذكاء الاصطناعي.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
+    <Card className="w-full max-w-4xl shadow-2xl bg-card/80 backdrop-blur-sm border-primary/10 border-t-0 rounded-t-none">
+      <CardContent className="space-y-6 pt-6">
         <div className="space-y-2">
             <Label htmlFor="pdfName" className="text-right w-full block">اسم ملف PDF</Label>
             <Input

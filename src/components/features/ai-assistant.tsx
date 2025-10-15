@@ -72,7 +72,6 @@ export function AiAssistant() {
         try {
              const result = await askAssistant({
                 prompt: promptText,
-                history: messages, // Send the history before the new user message
                 file: attachedFile ? { url: attachedFile.url } : undefined,
             });
 

@@ -17,7 +17,6 @@ const MessageSchema = z.object({
 
 const AssistantInputSchema = z.object({
   prompt: z.string().describe('The user\'s latest message.'),
-  history: z.array(MessageSchema).describe('The conversation history.'),
    file: z.object({
     url: z.string().describe("A data URI of the file. Expected format: 'data:<mimetype>;base64,<encoded_data>'."),
   }).optional().describe('An optional file (image, pdf) to include with the prompt.'),
@@ -42,7 +41,7 @@ const assistantFlow = ai.defineFlow(
     outputSchema: AssistantOutputSchema,
   },
   async input => {
-    const {history, prompt, file} = input;
+    const {prompt, file} = input;
 
     const systemPrompt = `You are Medo.Ai, a helpful and versatile AI assistant.
 Your capabilities include:
@@ -56,24 +55,17 @@ Engage in a friendly and helpful conversation. Your responses should be in Arabi
 
     const model = ai.model('gemini-pro');
 
-    const fullPrompt: any[] = [];
+    const fullPrompt: any[] = [
+        {text: systemPrompt} // Add system context
+    ];
     if (file) {
       fullPrompt.push({ media: { url: file.url } });
     }
     fullPrompt.push({ text: prompt });
     
-    // Add the system prompt and a static initial greeting to the history for the model's context ONLY if history is empty.
-    const fullHistory = [...history];
-    if (history.length === 0) {
-        fullHistory.unshift(
-            {role: 'system', content: [{text: systemPrompt}]}
-        );
-    }
-    
     const {text} = await ai.generate({
       model,
       prompt: fullPrompt,
-      history: fullHistory,
     });
 
     return {response: text};

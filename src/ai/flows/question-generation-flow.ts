@@ -30,6 +30,7 @@ const GenerateQuestionsInputSchema = z.object({
 export type GenerateQuestionsInput = z.infer<typeof GenerateQuestionsInputSchema>;
 
 // Defines the output schema for the flow
+// Note: The flow itself will return a string, which the client will parse.
 const GenerateQuestionsOutputSchema = z.object({
   questions: z.array(QuestionSchema),
 });
@@ -37,7 +38,7 @@ export type GenerateQuestionsOutput = z.infer<typeof GenerateQuestionsOutputSche
 export type Question = z.infer<typeof QuestionSchema>;
 
 
-export async function generateQuestions(input: GenerateQuestionsInput): Promise<GenerateQuestionsOutput> {
+export async function generateQuestions(input: GenerateQuestionsInput): Promise<string> {
   return generateQuestionsFlow(input);
 }
 
@@ -45,22 +46,24 @@ const generateQuestionsFlow = ai.defineFlow(
   {
     name: 'generateQuestionsFlow',
     inputSchema: GenerateQuestionsInputSchema,
-    outputSchema: GenerateQuestionsOutputSchema,
+    outputSchema: z.string(), // The flow now returns a raw string
   },
   async input => {
     const { text, image, language, numQuestions, interactive, difficulty } = input;
 
     const promptParts: any[] = [];
-
-    // Add image/pdf first if it exists
-    if (image) {
-        promptParts.push({ media: { url: image } });
-    } else if (!text) {
+    
+    if (!text && !image) {
         throw new Error("Either text or an image must be provided to generate questions.");
     }
     
+    // Add image/pdf first if it exists
+    if (image) {
+        promptParts.push({ media: { url: image } });
+    }
+    
     // Construct the text prompt
-    const textPrompt = `You are an expert in creating educational content. Your task is to generate a list of questions based on the provided context (text or file).
+    const fullPromptText = `You are an expert in creating educational content. Your task is to generate a list of questions based on the provided context (text or file).
 The questions should be in the same language as the source text, which is '${language}'.
 The questions should be of '${difficulty}' difficulty.
 
@@ -75,46 +78,28 @@ For every question, you MUST provide:
 3.  The single correct answer ('correctAnswer').
 4.  A brief explanation of why the answer is correct ('explanation').
 
-CRITICAL: The output MUST be a valid JSON object string that adheres to the defined schema. Do not add any text before or after the JSON object. Do not use markdown backticks like \`\`\`json.
+CRITICAL: The output MUST be a valid JSON object string that adheres to the defined schema. Do not add any text before or after the JSON object. Do not use markdown backticks like \`\`\`json. Your entire response should be only the JSON object.
 
 ${text ? `\nSource Text:\n\'\'\'\n${text}\n\'\'\'` : ''}
 `;
 
-    promptParts.push({ text: textPrompt });
+    promptParts.push({ text: fullPromptText });
 
-    // Use a more robust model and remove the output format constraint
     const llmResponse = await ai.generate({
-      model: 'googleai/gemini-2.5-flash',
+      model: 'googleai/gemini-pro', // Using a more robust model
       prompt: promptParts,
       config: {
-        temperature: 0.5,
+        temperature: 0.3,
       }
     });
     
-    let responseText = llmResponse.text;
+    const responseText = llmResponse.text;
     
     if (!responseText) {
       throw new Error("Failed to get a response from the AI model.");
     }
-    
-    // Clean the response to ensure it's a valid JSON string
-    // This is a robust way to handle responses wrapped in markdown
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      responseText = jsonMatch[0];
-    } else {
-        console.error("No valid JSON object found in the response:", responseText);
-        throw new Error("Response did not contain a valid JSON object.");
-    }
 
-    try {
-      const output = JSON.parse(responseText) as GenerateQuestionsOutput;
-      // Further validation with Zod if necessary
-      GenerateQuestionsOutputSchema.parse(output);
-      return output;
-    } catch (e) {
-        console.error("Failed to parse JSON response from LLM:", responseText, e);
-        throw new Error("Failed to get a valid structured response from the AI model.");
-    }
+    // Return the raw text. The client will handle parsing.
+    return responseText;
   }
 );

@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { generateQuestions, Question } from '@/ai/flows/question-generation-flow';
+import { generateQuestions, Question, GenerateQuestionsOutput } from '@/ai/flows/question-generation-flow';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -90,7 +90,7 @@ export function QuestionGenerator() {
         setUserAnswers([]);
 
         try {
-            const result = await generateQuestions({
+            const rawResult = await generateQuestions({
                 text: inputMode === 'text' ? sourceText : undefined,
                 image: inputMode === 'file' ? sourceFile! : undefined,
                 language: language,
@@ -99,7 +99,28 @@ export function QuestionGenerator() {
                 difficulty: difficulty,
             });
 
-            if (result && result.questions.length > 0) {
+            let result: GenerateQuestionsOutput;
+            try {
+                // Clean the response to ensure it's a valid JSON string
+                const jsonMatch = rawResult.match(/\{[\s\S]*\}/);
+                if (!jsonMatch) {
+                    throw new Error("Response did not contain a valid JSON object.");
+                }
+                result = JSON.parse(jsonMatch[0]);
+
+            } catch(e) {
+                 console.error("Failed to parse JSON response from LLM:", rawResult, e);
+                 toast({
+                    variant: "destructive",
+                    title: "فشل تحليل الاستجابة",
+                    description: "تم استلام استجابة غير صالحة من الذكاء الاصطناعي. الرجاء المحاولة مرة أخرى.",
+                 });
+                 setIsGenerating(false);
+                 return;
+            }
+
+
+            if (result && result.questions && result.questions.length > 0) {
                 setGeneratedQuestions(result.questions);
                 toast({
                     title: 'تم توليد الأسئلة بنجاح!',
@@ -326,7 +347,7 @@ export function QuestionGenerator() {
                             return (
                             <Card key={index} className="bg-secondary p-4" dir={language === 'ar' ? 'rtl' : 'ltr'}>
                                 <p className="font-bold">{`${index + 1}. ${q.question}`}</p>
-                                {isInteractive ? (
+                                {isInteractive && q.options && q.options.length > 0 ? (
                                     <RadioGroup
                                         className="space-y-2 mt-2"
                                         onValueChange={(value) => handleAnswerSelect(index, value)}

@@ -86,7 +86,7 @@ ${text ? `\nSource Text:\n\'\'\'\n${text}\n\'\'\'` : ''}
     promptParts.push({ text: fullPromptText });
 
     const llmResponse = await ai.generate({
-      model: 'googleai/gemini-pro', // Using a more robust model
+      model: 'googleai/gemini-2.5-flash', // Using a more robust model
       prompt: promptParts,
       config: {
         temperature: 0.3,

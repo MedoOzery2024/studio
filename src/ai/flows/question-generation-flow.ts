@@ -69,14 +69,15 @@ For every question, you MUST provide:
 
 CRITICAL: The output MUST be a valid JSON object that strictly adheres to the defined output schema. Do not output plain text or markdown.
 
-${image ? "Analyze the following image:" : "Analyze the following text:"}
+Analyze the provided file.
 `;
     
-    const promptParts: any[] = [{text: promptText}];
+    const promptParts: any[] = [];
     if (image) {
+      promptParts.push({text: promptText});
       promptParts.push({ media: { url: image } });
     } else {
-      promptParts.push({ text: `\nSource Text:\n'''\n${text}\n'''` });
+      promptParts.push({ text: `${promptText}\nSource Text:\n'''\n${text}\n'''` });
     }
 
     const llmResponse = await ai.generate({

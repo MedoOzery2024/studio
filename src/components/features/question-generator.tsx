@@ -100,12 +100,14 @@ export function QuestionGenerator() {
 
             let result: GenerateQuestionsOutput;
             try {
-                // Clean the response to ensure it's a valid JSON string
-                const jsonMatch = rawResult.match(/\{[\s\S]*\}/);
+                // More robust JSON cleaning: handles markdown fences and finds the JSON array/object.
+                const jsonMatch = rawResult.match(/```json\s*([\s\S]*?)\s*```|(\[[\s\S]*\]|\{[\s\S]*\})/);
                 if (!jsonMatch) {
-                    throw new Error("Response did not contain a valid JSON object.");
+                    throw new Error("Response did not contain a valid JSON object or array.");
                 }
-                result = JSON.parse(jsonMatch[0]);
+                // Use the first captured group that is not undefined.
+                const jsonString = jsonMatch[1] || jsonMatch[2];
+                result = JSON.parse(jsonString);
 
             } catch(e) {
                  console.error("Failed to parse JSON response from LLM:", rawResult, e);

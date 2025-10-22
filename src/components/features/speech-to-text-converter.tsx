@@ -10,12 +10,10 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { transcribeAudio } from '@/ai/flows/speech-to-text-flow';
 import { summarizeText } from '@/ai/flows/summarize-text-flow';
-import { useUser } from '@/firebase/provider';
-import { useFirestore } from '@/firebase/provider';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { useMemoFirebase } from '@/firebase/provider';
+import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection } from '@/firebase';
 import { collection, doc, deleteDoc } from 'firebase/firestore';
-import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { setDocumentNonBlocking } from '@/firebase';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface SavedFile {

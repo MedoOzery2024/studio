@@ -51,7 +51,7 @@ const generateQuestionsFlow = ai.defineFlow(
   async input => {
     const { text, image, language, numQuestions, interactive, difficulty } = input;
 
-    const promptText = `You are an expert in creating educational content. Your task is to generate a list of questions based on the provided context (text or file).
+    const basePrompt = `You are an expert in creating educational content. Your task is to generate a list of questions based on the provided context (text or file).
 The questions should be in the same language as the source text, which is '${language}'.
 The questions should be of '${difficulty}' difficulty.
 
@@ -70,16 +70,17 @@ For every question, you MUST provide:
 CRITICAL: The output MUST be a valid JSON object that strictly adheres to the defined output schema. Do not output plain text or markdown.
 `;
     
-    const promptParts: any[] = [{ text: promptText }];
+    const promptParts: any[] = [];
 
     if (image) {
       // If an image/file is provided, use it as the primary context.
+      const fullTextPrompt = `${basePrompt}\nAnalyze the provided file and generate questions from it.`;
       promptParts.push({ media: { url: image } });
-      promptParts.push({ text: "\nAnalyze the provided file."});
-
+      promptParts.push({ text: fullTextPrompt });
     } else if (text) {
       // If no image, use the provided text as context.
-      promptParts.push({ text: `\nSource Text:\n'''\n${text}\n'''` });
+      const fullTextPrompt = `${basePrompt}\nSource Text:\n'''\n${text}\n'''`;
+      promptParts.push({ text: fullTextPrompt });
     } else {
         throw new Error("Either text or an image must be provided to generate questions.");
     }

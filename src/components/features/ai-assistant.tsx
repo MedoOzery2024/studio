@@ -31,6 +31,13 @@ export function AiAssistant() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
 
+    const suggestionPrompts = [
+      "اشرح لي هذه الصورة",
+      "لخص محتوى هذا الملف",
+      "ما هي الأفكار الرئيسية في هذا المستند؟",
+      "اكتب لي قصيدة عن الذكاء الاصطناعي",
+    ];
+
     useEffect(() => {
         if (scrollAreaRef.current) {
             scrollAreaRef.current.scrollTo({
@@ -40,9 +47,9 @@ export function AiAssistant() {
         }
     }, [messages]);
 
-    const handleSendMessage = async (e?: React.FormEvent) => {
+    const handleSendMessage = async (e?: React.FormEvent, prompt?: string) => {
         e?.preventDefault();
-        const currentInput = input.trim();
+        const currentInput = prompt || input.trim();
         const currentFile = attachedFile;
 
         if (!currentInput && !currentFile) return;
@@ -144,7 +151,19 @@ export function AiAssistant() {
                                 <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground pt-16">
                                     <Sparkles className="w-16 h-16 mb-4 text-primary" />
                                     <h2 className="text-2xl font-semibold text-foreground">المساعد الذكي</h2>
-                                    <p>اطرح سؤالاً، أو ارفع صورة/ملف PDF لبدء المحادثة.</p>
+                                    <p className="mb-4">اطرح سؤالاً، أو ارفع صورة/ملف PDF لبدء المحادثة.</p>
+                                    <div className="grid grid-cols-2 gap-2 w-full max-w-md">
+                                        {suggestionPrompts.map((prompt, i) => (
+                                            <Button
+                                                key={i}
+                                                variant="outline"
+                                                className="text-right justify-start h-auto"
+                                                onClick={(e) => handleSendMessage(e, prompt)}
+                                            >
+                                                {prompt}
+                                            </Button>
+                                        ))}
+                                    </div>
                                 </div>
                             )}
                             {messages.map((message, index) => (

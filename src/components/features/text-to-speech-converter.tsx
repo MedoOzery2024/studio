@@ -145,26 +145,32 @@ export function TextToSpeechConverter() {
                 </Button>
             </CardContent>
 
-            {audioUrl && (
+            {(audioUrl || inputText) && (
                 <CardFooter className="flex flex-col items-center gap-4 border-t border-border pt-6">
-                    <audio ref={setupAudioPlayer} src={audioUrl} className="hidden" />
-                    <div className="flex w-full justify-center items-center gap-4">
-                        <Button onClick={handlePlayPause} size="icon" className="w-16 h-16 rounded-full">
-                           {isPlaying ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8" />}
-                        </Button>
-                    </div>
+                    {audioUrl && (
+                        <>
+                            <audio ref={setupAudioPlayer} src={audioUrl} className="hidden" />
+                            <div className="flex w-full justify-center items-center gap-4">
+                                <Button onClick={handlePlayPause} size="icon" className="w-16 h-16 rounded-full">
+                                {isPlaying ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8" />}
+                                </Button>
+                            </div>
+                        </>
+                    )}
                     <div className="flex w-full justify-center items-center gap-2">
-                       <Button variant="outline" onClick={() => {
-                           const link = document.createElement('a');
-                           link.href = audioUrl;
-                           link.download = `medo-ai-speech.wav`;
-                           document.body.appendChild(link);
-                           link.click();
-                           document.body.removeChild(link);
-                       }}>
-                           <Download className="ml-2"/>
-                           تنزيل
-                       </Button>
+                       {audioUrl && (
+                            <Button variant="outline" onClick={() => {
+                                const link = document.createElement('a');
+                                link.href = audioUrl;
+                                link.download = `medo-ai-speech.wav`;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                            }}>
+                                <Download className="ml-2"/>
+                                تنزيل
+                            </Button>
+                       )}
                        <Button variant="destructive" onClick={handleClear}>
                            <Trash2 className="ml-2"/>
                            مسح
@@ -175,3 +181,4 @@ export function TextToSpeechConverter() {
         </Card>
     );
 }
+    

@@ -4,7 +4,7 @@ import { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Loader2, FileUp, Settings, Plus, Minus, Wand2, Download, Trash2, Check } from 'lucide-react';
+import { Loader2, FileUp, Settings, Plus, Minus, Wand2, Download, Trash2, Check, XCircle, Lightbulb } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -16,10 +16,16 @@ import { cn } from '@/lib/utils';
 const MAX_QUESTIONS = 100;
 type Difficulty = 'easy' | 'medium' | 'hard';
 
+interface UserAnswer {
+    questionIndex: number;
+    selectedOption: string;
+    isCorrect: boolean;
+}
 
 export function QuestionGenerator() {
     const [isGenerating, setIsGenerating] = useState(false);
     const [generatedQuestions, setGeneratedQuestions] = useState<Question[]>([]);
+    const [userAnswers, setUserAnswers] = useState<UserAnswer[]>([]);
     const [sourceFile, setSourceFile] = useState<string | null>(null);
     const [numQuestions, setNumQuestions] = useState(5);
     const [isInteractive, setIsInteractive] = useState(true);
@@ -34,10 +40,11 @@ export function QuestionGenerator() {
 
         setFileName(file.name);
         setGeneratedQuestions([]);
+        setUserAnswers([]);
         setSourceFile(null);
 
-        const isPdf = file.type === 'application/pdf';
         const isImage = file.type.startsWith('image/');
+        const isPdf = file.type === 'application/pdf';
 
         if (isImage || isPdf) {
             const reader = new FileReader();
@@ -59,7 +66,7 @@ export function QuestionGenerator() {
             setFileName('');
         }
     };
-
+    
     const handleGenerateQuestions = async () => {
         if (!sourceFile) {
             toast({
@@ -72,10 +79,11 @@ export function QuestionGenerator() {
 
         setIsGenerating(true);
         setGeneratedQuestions([]);
+        setUserAnswers([]);
 
         try {
             const result = await generateQuestions({
-                text: "Analyze the attached file to generate questions.", // Instruction for the AI
+                text: "Analyze the attached file to generate questions.",
                 image: sourceFile,
                 language: 'ar',
                 numQuestions: numQuestions,
@@ -103,33 +111,37 @@ export function QuestionGenerator() {
             setIsGenerating(false);
         }
     };
+    
+    const handleAnswerSelect = (questionIndex: number, selectedOption: string) => {
+        const question = generatedQuestions[questionIndex];
+        const isCorrect = question.correctAnswer === selectedOption;
+        
+        setUserAnswers(prevAnswers => {
+            const otherAnswers = prevAnswers.filter(a => a.questionIndex !== questionIndex);
+            return [...otherAnswers, { questionIndex, selectedOption, isCorrect }];
+        });
+    };
 
     const handleDownload = () => {
         if (generatedQuestions.length === 0) {
             toast({
                 variant: "destructive",
                 title: "لا توجد أسئلة للتنزيل",
-                description: "الرجاء توليد الأسئلة أولاً.",
             });
             return;
         }
-
         let content = `الأسئلة التي تم إنشاؤها من ملف: ${fileName}\n\n`;
         content += "========================================\n\n";
-
         generatedQuestions.forEach((q, index) => {
             content += `سؤال ${index + 1}: ${q.question}\n`;
             if (q.isInteractive && q.options && q.options.length > 0) {
                 content += "الخيارات:\n";
-                q.options.forEach(opt => {
-                    content += `- ${opt}\n`;
-                });
+                q.options.forEach(opt => content += `- ${opt}\n`);
             }
             content += `الإجابة الصحيحة: ${q.correctAnswer}\n`;
             content += `الشرح: ${q.explanation}\n\n`;
             content += "----------------------------------------\n\n";
         });
-
         const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -141,27 +153,23 @@ export function QuestionGenerator() {
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
     };
-    
+
     return (
         <Card className="w-full max-w-4xl mx-auto shadow-lg bg-card border-none">
             <CardHeader>
                 <CardTitle className="text-center text-2xl font-bold text-primary">توليد الأسئلة من المحتوى</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-                <div 
+                 <div 
                     className="flex justify-center items-center w-full px-6 py-10 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary hover:bg-secondary transition-colors"
                     onClick={() => fileInputRef.current?.click()}
                 >
                     <div className="text-center">
                         <FileUp className="mx-auto h-12 w-12 text-muted-foreground"/>
                         <p className="mt-2 text-sm text-foreground">
-                            {fileName ? (
-                                <span className="font-semibold text-primary">{fileName}</span>
-                            ) : (
-                                <>
-                                    <span className="font-semibold text-primary">انقر للاختيار</span> أو اسحب وأفلت صورة أو PDF هنا
-                                </>
-                            )}
+                            {fileName ? <span className="font-semibold text-primary">{fileName}</span> : <>
+                                <span className="font-semibold text-primary">انقر للاختيار</span> أو اسحب وأفلت صورة أو PDF هنا
+                            </>}
                         </p>
                         <p className="text-xs text-muted-foreground">PDF, PNG, JPG, GIF</p>
                     </div>
@@ -174,7 +182,6 @@ export function QuestionGenerator() {
                     className="hidden"
                     onChange={handleFileChange}
                 />
-
                 <Accordion type="single" collapsible className="w-full rounded-lg bg-secondary px-4">
                     <AccordionItem value="settings" className="border-none">
                         <AccordionTrigger>
@@ -198,24 +205,13 @@ export function QuestionGenerator() {
                             </div>
                              <div className="space-y-3">
                                 <Label className="font-semibold">مستوى الصعوبة</Label>
-                                <RadioGroup
-                                    value={difficulty}
-                                    onValueChange={(value: Difficulty) => setDifficulty(value)}
-                                    className="grid grid-cols-3 gap-2"
-                                    dir="rtl"
-                                >
+                                <RadioGroup value={difficulty} onValueChange={(value: Difficulty) => setDifficulty(value)} className="grid grid-cols-3 gap-2" dir="rtl">
                                     {(['easy', 'medium', 'hard'] as Difficulty[]).map((level) => {
                                         const translations = { easy: 'سهل', medium: 'متوسط', hard: 'صعب' };
                                         return (
                                             <div key={level}>
                                                 <RadioGroupItem value={level} id={level} className="sr-only" />
-                                                <Label
-                                                    htmlFor={level}
-                                                    className={cn(
-                                                        "flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer",
-                                                        difficulty === level && "border-primary"
-                                                    )}
-                                                >
+                                                <Label htmlFor={level} className={cn("flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer", difficulty === level && "border-primary")}>
                                                     {translations[level]}
                                                 </Label>
                                             </div>
@@ -226,63 +222,61 @@ export function QuestionGenerator() {
                         </AccordionContent>
                     </AccordionItem>
                 </Accordion>
-
-
                 <Button onClick={handleGenerateQuestions} disabled={isGenerating || !sourceFile} className="w-full text-lg py-6">
-                    {isGenerating ? (
-                        <>
-                            <Loader2 className="ml-2 h-5 w-5 animate-spin" />
-                            جاري توليد الأسئلة...
-                        </>
-                    ) : (
-                        <>
-                            <Wand2 className="ml-2 h-5 w-5" />
-                            توليد الأسئلة
-                        </>
-                    )}
+                    {isGenerating ? <><Loader2 className="ml-2 h-5 w-5 animate-spin" /> جاري توليد الأسئلة...</> : <><Wand2 className="ml-2 h-5 w-5" /> توليد الأسئلة</>}
                 </Button>
             </CardContent>
+            
             {generatedQuestions.length > 0 && (
                 <CardFooter className="flex flex-col items-start gap-4">
                     <h3 className="text-lg font-medium text-right w-full border-t border-border pt-4 text-primary">الأسئلة التي تم إنشاؤها</h3>
-                    <Accordion type="single" collapsible className="w-full space-y-2">
-                        {generatedQuestions.map((q, index) => (
-                            <AccordionItem value={`item-${index}`} key={index} className="bg-secondary rounded-lg px-4 border-b-0">
-                                <AccordionTrigger className="text-right hover:no-underline">{`سؤال ${index + 1}: ${q.question}`}</AccordionTrigger>
-                                <AccordionContent>
-                                    <div className="space-y-4 text-right pr-4 border-r-2 border-primary mr-2">
-                                        {q.isInteractive && q.options && q.options.length > 0 && (
-                                            <div className="space-y-2">
-                                                <h4 className="font-semibold">الخيارات:</h4>
-                                                <ul className="space-y-1">
-                                                    {q.options.map((opt, i) => (
-                                                        <li key={i} className={`flex items-center gap-2 justify-end ${opt === q.correctAnswer ? 'text-green-400' : 'text-foreground'}`}>
-                                                            <span>{opt}</span>
-                                                             {opt === q.correctAnswer && <Check className="w-4 h-4" />}
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        )}
-                                        <div>
-                                            <h4 className="font-semibold">الإجابة الصحيحة:</h4>
-                                            <p className="flex items-center gap-2 justify-end text-green-400">{q.correctAnswer} <Check className="w-4 h-4" /></p>
-                                        </div>
-                                         <div>
-                                            <h4 className="font-semibold">الشرح:</h4>
-                                            <p className="text-muted-foreground">{q.explanation}</p>
-                                        </div>
+                    <div className="w-full space-y-4">
+                        {generatedQuestions.map((q, index) => {
+                            const userAnswer = userAnswers.find(a => a.questionIndex === index);
+                            return (
+                            <Card key={index} className="bg-secondary p-4" dir="rtl">
+                                <p className="font-bold">{`${index + 1}. ${q.question}`}</p>
+                                {q.isInteractive ? (
+                                    <RadioGroup
+                                        className="space-y-2 mt-2"
+                                        onValueChange={(value) => handleAnswerSelect(index, value)}
+                                        value={userAnswer?.selectedOption}
+                                        disabled={!!userAnswer}
+                                    >
+                                        {q.options.map((opt, i) => {
+                                            const isSelected = userAnswer?.selectedOption === opt;
+                                            const isCorrect = q.correctAnswer === opt;
+                                            return (
+                                                <div key={i} className={cn("flex items-center space-x-2 p-2 rounded-md",
+                                                    userAnswer && isCorrect && "bg-green-500/20 border-green-500 border",
+                                                    userAnswer && isSelected && !isCorrect && "bg-red-500/20 border-red-500 border"
+                                                )}>
+                                                    <RadioGroupItem value={opt} id={`q${index}-opt${i}`} />
+                                                    <Label htmlFor={`q${index}-opt${i}`} className="flex-1 cursor-pointer">{opt}</Label>
+                                                    {userAnswer && isSelected && !isCorrect && <XCircle className="w-5 h-5 text-red-500" />}
+                                                    {userAnswer && isCorrect && <Check className="w-5 h-5 text-green-500" />}
+                                                </div>
+                                            );
+                                        })}
+                                    </RadioGroup>
+                                ) : (
+                                    <div className="mt-2 text-green-400 font-semibold bg-green-500/10 p-2 rounded-md">{q.correctAnswer}</div>
+                                )}
+                                {userAnswer && (
+                                    <div className="mt-3 p-3 bg-card rounded-md border border-border">
+                                        <p className="font-bold flex items-center gap-2"><Lightbulb className="w-5 h-5 text-primary" /> الشرح:</p>
+                                        <p className="text-muted-foreground">{q.explanation}</p>
                                     </div>
-                                </AccordionContent>
-                            </AccordionItem>
-                        ))}
-                    </Accordion>
+                                )}
+                            </Card>
+                        )})}
+                    </div>
                     <div className="flex w-full justify-end items-center pt-4 border-t border-border mt-4 gap-2">
                        <Button variant="outline" onClick={handleDownload}>
                            <Download className="ml-2"/>
                            تنزيل
                        </Button>
-                       <Button variant="destructive" onClick={() => setGeneratedQuestions([])}>
+                       <Button variant="destructive" onClick={() => { setGeneratedQuestions([]); setUserAnswers([]); }}>
                            <Trash2 className="ml-2"/>
                            حذف الكل
                        </Button>
@@ -292,3 +286,4 @@ export function QuestionGenerator() {
         </Card>
     );
 }
+    

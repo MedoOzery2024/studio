@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Mic, MicOff, Loader2, Download, Save, Trash2 } from 'lucide-react';
+import { Mic, MicOff, Loader2, Download, Save, Trash2, FileText, View } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -15,6 +15,7 @@ import { useCollection } from '@/firebase';
 import { collection, doc, deleteDoc } from 'firebase/firestore';
 import { setDocumentNonBlocking } from '@/firebase';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
 
 interface SavedFile {
     id: string;
@@ -32,6 +33,7 @@ export function SpeechToTextConverter() {
     const [isSummarizing, setIsSummarizing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [fileName, setFileName] = useState('');
+    const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
     const { toast } = useToast();
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
@@ -57,7 +59,14 @@ export function SpeechToTextConverter() {
                 });
             });
     }, [toast]);
-
+    
+    const handleViewFile = (file: SavedFile) => {
+        setTranscribedText(file.transcribedText);
+        setSummarizedText(file.summarizedText);
+        setFileName(file.fileName);
+        setSelectedFileId(file.id);
+        toast({ title: `جاري عرض ملف: ${file.fileName}`});
+    };
 
     const handleRecord = async () => {
         if (isRecording) {
@@ -174,7 +183,7 @@ export function SpeechToTextConverter() {
         
         setIsSaving(true);
         try {
-            const fileId = doc(collection(firestore, `users/${user.uid}/uploadedFiles`)).id;
+            const fileId = selectedFileId || doc(collection(firestore, `users/${user.uid}/uploadedFiles`)).id;
             const docRef = doc(firestore, `users/${user.uid}/uploadedFiles`, fileId);
             const dataToSave = {
                 id: fileId,
@@ -190,6 +199,7 @@ export function SpeechToTextConverter() {
             setTranscribedText('');
             setSummarizedText('');
             setFileName('');
+            setSelectedFileId(null);
         } catch (error) {
             console.error("Failed to save to Firestore:", error);
             toast({
@@ -207,6 +217,12 @@ export function SpeechToTextConverter() {
         const docRef = doc(firestore, `users/${user.uid}/uploadedFiles`, fileId);
         try {
             await deleteDoc(docRef);
+            if (selectedFileId === fileId) {
+                setTranscribedText('');
+                setSummarizedText('');
+                setFileName('');
+                setSelectedFileId(null);
+            }
             toast({ title: "تم الحذف بنجاح!" });
         } catch (error) {
             console.error("Failed to delete from Firestore:", error);
@@ -216,6 +232,14 @@ export function SpeechToTextConverter() {
             });
         }
     };
+    
+    const handleNewFile = () => {
+        setTranscribedText('');
+        setSummarizedText('');
+        setFileName('');
+        setSelectedFileId(null);
+        toast({ title: 'تم إنشاء ملف جديد'});
+    }
 
     return (
         <Card className="w-full max-w-4xl mx-auto shadow-lg bg-card border-none">
@@ -301,24 +325,33 @@ export function SpeechToTextConverter() {
                             </Button>
                             <Button onClick={handleSave} disabled={isSaving || !transcribedText} className="sm:col-span-2 md:col-span-1">
                                {isSaving ? <Loader2 className="h-4 w-4 animate-spin ml-2"/> : <Save className="ml-2"/>}
-                               {isSaving ? 'جاري الحفظ...' : 'حفظ'}
+                               {isSaving ? 'جاري الحفظ...' : (selectedFileId ? 'تحديث' : 'حفظ')}
                            </Button>
                          </div>
                      </div>
                  </div>
                  
-                  {user && savedFiles && savedFiles.length > 0 && (
+                  {user && (
                     <div className="w-full">
-                        <h3 className="text-lg font-medium text-right w-full border-t border-border pt-4 mt-4 text-primary">الملفات المحفوظة</h3>
+                        <div className="w-full flex justify-between items-center border-t border-border pt-4 mt-4">
+                            <h3 className="text-lg font-medium text-right text-primary">الملفات المحفوظة</h3>
+                             <Button variant="outline" onClick={handleNewFile}>
+                                <FileText className="ml-2"/>
+                                ملف جديد
+                            </Button>
+                        </div>
                          <ScrollArea className="h-48 w-full mt-2">
                              <ul className="w-full space-y-2 pr-2">
-                                {savedFiles.map((file) => (
-                                <li key={file.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary" dir="rtl">
-                                    <div className="flex flex-col overflow-hidden">
+                                {savedFiles && savedFiles.map((file) => (
+                                <li key={file.id} className={cn("flex items-center justify-between p-3 rounded-lg bg-secondary cursor-pointer", selectedFileId === file.id && "ring-2 ring-primary")} dir="rtl">
+                                    <div className="flex flex-col overflow-hidden" onClick={() => handleViewFile(file)}>
                                         <span className="font-bold text-foreground truncate">{file.fileName}</span>
                                         <span className="text-xs text-muted-foreground">{new Date(file.uploadDate).toLocaleString()}</span>
                                     </div>
                                     <div className="flex gap-2">
+                                        <Button variant="ghost" size="icon" onClick={() => handleViewFile(file)}>
+                                            <View className="h-4 w-4"/>
+                                        </Button>
                                         <Button variant="destructive" size="icon" onClick={() => handleDelete(file.id)}>
                                             <Trash2 className="h-4 w-4" />
                                             <span className="sr-only">حذف</span>
@@ -335,3 +368,4 @@ export function SpeechToTextConverter() {
         </Card>
     );
 }
+    

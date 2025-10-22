@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Bot, User, Paperclip, Send, Loader2, File as FileIcon, X, Sparkles } from 'lucide-react';
+import { Bot, User, Paperclip, Send, Loader2, File as FileIcon, X, Sparkles, Copy, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
@@ -108,15 +108,6 @@ export function AiAssistant() {
     const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
-            if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
-                toast({
-                    variant: 'destructive',
-                    title: 'نوع ملف غير مدعوم',
-                    description: 'حاليًا، يمكنك رفع الصور وملفات PDF فقط.',
-                });
-                return;
-            }
-
             const reader = new FileReader();
             reader.onload = (e) => {
                 const url = e.target?.result as string;
@@ -140,6 +131,17 @@ export function AiAssistant() {
             reader.readAsDataURL(file);
         }
     };
+    
+    const handleCopy = (text: string) => {
+        navigator.clipboard.writeText(text);
+        toast({ title: 'تم نسخ النص!' });
+    };
+
+    const handleClearChat = () => {
+        setMessages([]);
+        setAttachedFile(null);
+        setInput('');
+    }
 
     return (
         <Card className="w-full h-full flex flex-col shadow-lg bg-card border-none">
@@ -170,7 +172,7 @@ export function AiAssistant() {
                                 <div
                                     key={`msg-${index}`}
                                     className={cn(
-                                        "flex items-start gap-3",
+                                        "flex items-start gap-3 group/message",
                                         message.role === 'user' ? 'justify-end' : 'justify-start'
                                     )}
                                 >
@@ -181,13 +183,23 @@ export function AiAssistant() {
                                     )}
                                     <div
                                         className={cn(
-                                            "max-w-xl rounded-lg px-4 py-3 shadow-md",
+                                            "max-w-xl rounded-lg px-4 py-3 shadow-md relative",
                                             message.role === 'user'
                                                 ? 'bg-primary text-primary-foreground'
                                                 : 'bg-secondary'
                                         )}
                                     >
                                         <p className="text-sm whitespace-pre-wrap">{message.content[0].text}</p>
+                                        {message.role === 'model' && (
+                                            <Button 
+                                                variant="ghost" 
+                                                size="icon" 
+                                                className="absolute top-1 left-1 h-6 w-6 opacity-0 group-hover/message:opacity-100 transition-opacity"
+                                                onClick={() => handleCopy(message.content[0].text)}
+                                            >
+                                                <Copy className="w-4 h-4"/>
+                                            </Button>
+                                        )}
                                     </div>
                                     {message.role === 'user' && (
                                         <Avatar className="w-8 h-8 border">
@@ -225,13 +237,18 @@ export function AiAssistant() {
                             </div>
                         )}
                         <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-                            <Input
-                                ref={fileInputRef}
-                                type="file"
-                                accept="image/*,.pdf"
-                                onChange={handleFileUpload}
-                                className="hidden"
-                            />
+                             {messages.length > 0 && (
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    size="icon"
+                                    onClick={handleClearChat}
+                                    disabled={isLoading}
+                                >
+                                    <Trash2 className="h-5 w-5" />
+                                    <span className="sr-only">مسح المحادثة</span>
+                                </Button>
+                            )}
                             <Button
                                 type="button"
                                 variant="outline"
@@ -267,3 +284,5 @@ export function AiAssistant() {
         </Card>
     );
 }
+
+    

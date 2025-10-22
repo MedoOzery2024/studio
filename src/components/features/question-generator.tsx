@@ -99,14 +99,18 @@ export function QuestionGenerator() {
                 difficulty: difficulty,
             });
 
-            if (result && result.questions) {
+            if (result && result.questions.length > 0) {
                 setGeneratedQuestions(result.questions);
                 toast({
                     title: 'تم توليد الأسئلة بنجاح!',
                     description: `تم إنشاء ${result.questions.length} سؤال.`,
                 });
             } else {
-                 throw new Error("No questions generated.");
+                 toast({
+                    variant: "destructive",
+                    title: "فشل توليد الأسئلة",
+                    description: "تعذر إنشاء أسئلة من المحتوى المقدم. حاول مرة أخرى أو قم بتعديل المدخلات.",
+                });
             }
         } catch (error) {
             console.error("Failed to generate questions:", error);
@@ -130,8 +134,17 @@ export function QuestionGenerator() {
         });
     };
     
-    const resetAnswers = () => {
+    const resetSession = () => {
         setUserAnswers([]);
+    };
+    
+    const clearInputs = () => {
+        setSourceFile(null);
+        setSourceText('');
+        setFileName('');
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
     };
 
     const renderResults = () => {
@@ -152,7 +165,7 @@ export function QuestionGenerator() {
                         style={{ width: `${score}%`}}
                     ></div>
                  </div>
-                 <Button onClick={resetAnswers} variant="outline">
+                 <Button onClick={resetSession} variant="outline">
                     <RotateCcw className="ml-2 h-4 w-4"/>
                     إعادة المحاولة
                  </Button>
@@ -172,9 +185,10 @@ export function QuestionGenerator() {
         content += "========================================\n\n";
         generatedQuestions.forEach((q, index) => {
             content += `سؤال ${index + 1}: ${q.question}\n`;
-            if (q.isInteractive && q.options && q.options.length > 0) {
+            if (isInteractive && q.options && q.options.length > 0) {
+                const choices = ['أ', 'ب', 'ج', 'د'];
                 content += "الخيارات:\n";
-                q.options.forEach(opt => content += `- ${opt}\n`);
+                q.options.forEach((opt, i) => content += `${choices[i]}- ${opt}\n`);
             }
             content += `الإجابة الصحيحة: ${q.correctAnswer}\n`;
             content += `الشرح: ${q.explanation}\n\n`;
@@ -192,6 +206,8 @@ export function QuestionGenerator() {
         URL.revokeObjectURL(url);
     };
 
+    const isGenerateButtonDisabled = isGenerating || (inputMode === 'file' && !sourceFile) || (inputMode === 'text' && !sourceText.trim());
+
     return (
         <Card className="w-full max-w-4xl mx-auto shadow-lg bg-card border-none">
             <CardHeader>
@@ -203,7 +219,7 @@ export function QuestionGenerator() {
                         <TabsTrigger value="file"><FileUp className="ml-2" /> رفع ملف</TabsTrigger>
                         <TabsTrigger value="text"><Type className="ml-2" /> إدخال نص</TabsTrigger>
                     </TabsList>
-                    <TabsContent value="file" className="mt-4">
+                    <TabsContent value="file" className="mt-4 relative">
                         <div 
                             className="flex justify-center items-center w-full px-6 py-10 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary hover:bg-secondary transition-colors"
                             onClick={() => fileInputRef.current?.click()}
@@ -226,8 +242,13 @@ export function QuestionGenerator() {
                             className="hidden"
                             onChange={handleFileChange}
                         />
+                         {sourceFile && (
+                            <Button variant="ghost" size="icon" className="absolute top-2 left-2" onClick={clearInputs}>
+                                <RotateCcw className="w-5 h-5 text-muted-foreground" />
+                            </Button>
+                        )}
                     </TabsContent>
-                    <TabsContent value="text" className="mt-4">
+                    <TabsContent value="text" className="mt-4 relative">
                          <Textarea
                             placeholder="اكتب أو الصق النص هنا..."
                             className="min-h-[150px] bg-secondary text-right"
@@ -235,22 +256,21 @@ export function QuestionGenerator() {
                             value={sourceText}
                             onChange={(e) => setSourceText(e.target.value)}
                          />
+                         {sourceText && (
+                             <Button variant="ghost" size="icon" className="absolute top-2 left-2" onClick={clearInputs}>
+                                <RotateCcw className="w-5 h-5 text-muted-foreground" />
+                            </Button>
+                         )}
                     </TabsContent>
                 </Tabs>
                 
-                <Accordion type="single" collapsible className="w-full rounded-lg bg-secondary px-4">
-                    <AccordionItem value="settings" className="border-none">
-                        <AccordionTrigger>
-                            <div className="flex items-center gap-2 font-semibold">
-                                <Settings className="w-5 h-5 text-primary" />
-                                <span>إعدادات التوليد</span>
-                            </div>
-                        </AccordionTrigger>
-                        <AccordionContent className="space-y-6 pt-4">
+                <Card className="p-4 bg-secondary">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-4">
                              <div className="flex items-center justify-between">
-                                <Label htmlFor="language-select" className="font-semibold">لغة الأسئلة</Label>
+                                <Label htmlFor="language-select" className="font-semibold text-foreground">لغة الأسئلة</Label>
                                 <Select value={language} onValueChange={(value: Language) => setLanguage(value)}>
-                                    <SelectTrigger id="language-select" className="w-[180px] bg-background">
+                                    <SelectTrigger id="language-select" className="w-[180px] bg-card">
                                         <SelectValue placeholder="اختر اللغة" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -260,37 +280,38 @@ export function QuestionGenerator() {
                                 </Select>
                              </div>
                             <div className="flex items-center justify-between">
-                                <Label htmlFor="num-questions" className="font-semibold">عدد الأسئلة</Label>
+                                <Label htmlFor="num-questions" className="font-semibold text-foreground">عدد الأسئلة</Label>
                                 <div className="flex items-center gap-2">
-                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setNumQuestions(n => Math.max(1, n - 1))}><Minus className="h-4 w-4" /></Button>
-                                    <Input id="num-questions" type="number" value={numQuestions} onChange={e => setNumQuestions(Math.max(1, Math.min(MAX_QUESTIONS, parseInt(e.target.value) || 1)))} className="w-16 text-center bg-background" />
-                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setNumQuestions(n => Math.min(MAX_QUESTIONS, n + 1))}><Plus className="h-4 w-4" /></Button>
+                                    <Button variant="outline" size="icon" className="h-8 w-8 bg-card" onClick={() => setNumQuestions(n => Math.max(1, n - 1))}><Minus className="h-4 w-4" /></Button>
+                                    <Input id="num-questions" type="number" value={numQuestions} onChange={e => setNumQuestions(Math.max(1, Math.min(MAX_QUESTIONS, parseInt(e.target.value) || 1)))} className="w-16 text-center bg-card" />
+                                    <Button variant="outline" size="icon" className="h-8 w-8 bg-card" onClick={() => setNumQuestions(n => Math.min(MAX_QUESTIONS, n + 1))}><Plus className="h-4 w-4" /></Button>
                                 </div>
                             </div>
                             <div className="flex items-center justify-between">
-                                <Label htmlFor="interactive-switch" className="font-semibold">أسئلة تفاعلية (اختيار من متعدد)</Label>
+                                <Label htmlFor="interactive-switch" className="font-semibold text-foreground">أسئلة تفاعلية</Label>
                                 <Switch id="interactive-switch" checked={isInteractive} onCheckedChange={setIsInteractive} />
                             </div>
-                             <div className="space-y-3">
-                                <Label className="font-semibold">مستوى الصعوبة</Label>
-                                <RadioGroup value={difficulty} onValueChange={(value: Difficulty) => setDifficulty(value)} className="grid grid-cols-3 gap-2" dir="rtl">
-                                    {(['easy', 'medium', 'hard'] as Difficulty[]).map((level) => {
-                                        const translations = { easy: 'سهل', medium: 'متوسط', hard: 'صعب' };
-                                        return (
-                                            <div key={level}>
-                                                <RadioGroupItem value={level} id={level} className="sr-only" />
-                                                <Label htmlFor={level} className={cn("flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer", difficulty === level && "border-primary")}>
-                                                    {translations[level]}
-                                                </Label>
-                                            </div>
-                                        );
-                                    })}
-                                </RadioGroup>
-                             </div>
-                        </AccordionContent>
-                    </AccordionItem>
-                </Accordion>
-                <Button onClick={handleGenerateQuestions} disabled={isGenerating || (inputMode === 'file' && !sourceFile) || (inputMode === 'text' && !sourceText.trim())} className="w-full text-lg py-6">
+                        </div>
+                        <div className="space-y-3">
+                            <Label className="font-semibold text-foreground">مستوى الصعوبة</Label>
+                            <RadioGroup value={difficulty} onValueChange={(value: Difficulty) => setDifficulty(value)} className="grid grid-cols-3 gap-2" dir="rtl">
+                                {(['easy', 'medium', 'hard'] as Difficulty[]).map((level) => {
+                                    const translations = { easy: 'سهل', medium: 'متوسط', hard: 'صعب' };
+                                    return (
+                                        <div key={level}>
+                                            <RadioGroupItem value={level} id={level} className="sr-only" />
+                                            <Label htmlFor={level} className={cn("flex flex-col items-center justify-between rounded-md border-2 border-muted bg-card p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer", difficulty === level && "border-primary")}>
+                                                {translations[level]}
+                                            </Label>
+                                        </div>
+                                    );
+                                })}
+                            </RadioGroup>
+                        </div>
+                    </div>
+                </Card>
+
+                <Button onClick={handleGenerateQuestions} disabled={isGenerateButtonDisabled} className="w-full text-lg py-6">
                     {isGenerating ? <><Loader2 className="ml-2 h-5 w-5 animate-spin" /> جاري توليد الأسئلة...</> : <><Wand2 className="ml-2 h-5 w-5" /> توليد الأسئلة</>}
                 </Button>
             </CardContent>
@@ -301,10 +322,11 @@ export function QuestionGenerator() {
                     <div className="w-full space-y-4">
                         {generatedQuestions.map((q, index) => {
                             const userAnswer = userAnswers.find(a => a.questionIndex === index);
+                            const choices = ['أ', 'ب', 'ج', 'د'];
                             return (
                             <Card key={index} className="bg-secondary p-4" dir={language === 'ar' ? 'rtl' : 'ltr'}>
                                 <p className="font-bold">{`${index + 1}. ${q.question}`}</p>
-                                {q.isInteractive ? (
+                                {isInteractive ? (
                                     <RadioGroup
                                         className="space-y-2 mt-2"
                                         onValueChange={(value) => handleAnswerSelect(index, value)}
@@ -313,17 +335,20 @@ export function QuestionGenerator() {
                                     >
                                         {q.options.map((opt, i) => {
                                             const isSelected = userAnswer?.selectedOption === opt;
-                                            const isCorrect = q.correctAnswer === opt;
+                                            const isCorrectAnswer = q.correctAnswer === opt;
                                             return (
-                                                <div key={i} className={cn("flex items-center space-x-2 p-2 rounded-md",
+                                                <div key={i} className={cn("flex items-center space-x-2 p-2 rounded-md border",
                                                     language === 'ar' ? "space-x-reverse" : "",
-                                                    userAnswer && isCorrect && "bg-green-500/20 border-green-500 border",
-                                                    userAnswer && isSelected && !isCorrect && "bg-red-500/20 border-red-500 border"
+                                                    !userAnswer ? "border-transparent" :
+                                                    isSelected && !isCorrectAnswer ? "bg-red-500/20 border-red-500" :
+                                                    isCorrectAnswer ? "bg-green-500/20 border-green-500" : "border-transparent"
                                                 )}>
                                                     <RadioGroupItem value={opt} id={`q${index}-opt${i}`} />
-                                                    <Label htmlFor={`q${index}-opt${i}`} className="flex-1 cursor-pointer">{opt}</Label>
-                                                    {userAnswer && isSelected && !isCorrect && <XCircle className="w-5 h-5 text-red-500" />}
-                                                    {userAnswer && isCorrect && <Check className="w-5 h-5 text-green-500" />}
+                                                    <Label htmlFor={`q${index}-opt${i}`} className="flex-1 cursor-pointer">
+                                                        <span className="font-bold">{choices[i]}-</span> {opt}
+                                                    </Label>
+                                                    {userAnswer && isSelected && !isCorrectAnswer && <XCircle className="w-5 h-5 text-red-500" />}
+                                                    {userAnswer && isCorrectAnswer && <Check className="w-5 h-5 text-green-500" />}
                                                 </div>
                                             );
                                         })}

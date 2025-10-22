@@ -71,19 +71,18 @@ CRITICAL: The output MUST be a valid JSON object that strictly adheres to the de
 `;
     
     const promptParts: any[] = [];
+    let contextPrompt = '';
 
     if (image) {
-      // If an image/file is provided, use it as the primary context.
-      const fullTextPrompt = `${basePrompt}\nAnalyze the provided file and generate questions from it.`;
-      promptParts.push({ media: { url: image } });
-      promptParts.push({ text: fullTextPrompt });
+        contextPrompt = "\nAnalyze the provided file and generate questions from it.";
+        promptParts.push({ media: { url: image } });
     } else if (text) {
-      // If no image, use the provided text as context.
-      const fullTextPrompt = `${basePrompt}\nSource Text:\n'''\n${text}\n'''`;
-      promptParts.push({ text: fullTextPrompt });
+        contextPrompt = `\nSource Text:\n'''\n${text}\n'''`;
     } else {
         throw new Error("Either text or an image must be provided to generate questions.");
     }
+
+    promptParts.push({ text: basePrompt + contextPrompt });
 
     const llmResponse = await ai.generate({
       model: 'googleai/gemini-2.5-flash',

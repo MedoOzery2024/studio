@@ -16,7 +16,6 @@ const QuestionSchema = z.object({
   options: z.array(z.string()).describe('An array of possible answers for multiple-choice questions. Empty for non-interactive questions.'),
   correctAnswer: z.string().describe('The correct answer.'),
   explanation: z.string().describe('An explanation for why the answer is correct.'),
-  isInteractive: z.boolean().describe('True for multiple-choice questions, false for direct question-answer pairs.'),
 });
 
 // Defines the input schema for the flow
@@ -65,7 +64,6 @@ For every question, you MUST provide:
 2.  An array of 4 options if interactive, or an empty array if not ('options').
 3.  The single correct answer ('correctAnswer').
 4.  A brief explanation of why the answer is correct ('explanation').
-5.  A boolean flag 'isInteractive'.
 
 CRITICAL: The output MUST be a valid JSON object that strictly adheres to the defined output schema. Do not output plain text or markdown.
 `;
@@ -81,8 +79,9 @@ CRITICAL: The output MUST be a valid JSON object that strictly adheres to the de
     } else {
         throw new Error("Either text or an image must be provided to generate questions.");
     }
-
-    promptParts.push({ text: basePrompt + contextPrompt });
+    
+    const fullPromptText = basePrompt + contextPrompt;
+    promptParts.push({ text: fullPromptText });
 
     const llmResponse = await ai.generate({
       model: 'googleai/gemini-2.5-flash',

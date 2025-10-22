@@ -22,6 +22,7 @@ const QuestionSchema = z.object({
 const GenerateQuestionsInputSchema = z.object({
   text: z.string().optional().describe('The source text from which to generate questions.'),
   image: z.string().optional().describe("An optional image/PDF file (as a data URI) to analyze for question generation."),
+  fileName: z.string().optional().describe("The name of the file being processed."),
   language: z.string().describe('The language of the source text (e.g., "ar", "en").'),
   numQuestions: z.number().min(1).max(100).describe('The number of questions to generate.'),
   interactive: z.boolean().describe('Whether to generate interactive (multiple-choice) questions or not.'),

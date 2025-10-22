@@ -69,7 +69,7 @@ The questions should be of '${difficulty}' difficulty.
 
 Generate exactly ${numQuestions} questions.
 
-If 'interactive' is true, you MUST generate multiple-choice questions with four options each.
+If 'interactive' is true, you MUST generate multiple-choice questions with exactly four options.
 If 'interactive' is false, generate direct questions with their corresponding answers and an empty 'options' array.
 
 For every question, you MUST provide:

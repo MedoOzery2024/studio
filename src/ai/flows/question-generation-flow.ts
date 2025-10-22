@@ -1,6 +1,6 @@
 'use server';
 /**
- * @fileOverview Flow to generate questions from a given text content.
+ * @fileOverview Flow to generate questions from a given text content or file.
  *
  * - generateQuestions - A function that handles the question generation process.
  * - GenerateQuestionsInput - The input type for the generateQuestions function.
@@ -21,8 +21,8 @@ const QuestionSchema = z.object({
 
 // Defines the input schema for the flow
 const GenerateQuestionsInputSchema = z.object({
-  text: z.string().describe('The source text from which to generate questions.'),
-  image: z.string().optional().describe("An optional image (as a data URI) to analyze for question generation."),
+  text: z.string().optional().describe('The source text from which to generate questions.'),
+  image: z.string().optional().describe("An optional image/PDF file (as a data URI) to analyze for question generation."),
   language: z.string().describe('The language of the source text (e.g., "ar", "en").'),
   numQuestions: z.number().min(1).max(100).describe('The number of questions to generate.'),
   interactive: z.boolean().describe('Whether to generate interactive (multiple-choice) questions or not.'),
@@ -51,7 +51,7 @@ const generateQuestionsFlow = ai.defineFlow(
   async input => {
     const { text, image, language, numQuestions, interactive, difficulty } = input;
 
-    const promptText = `You are an expert in creating educational content. Your task is to generate a list of questions based on the provided context (text or image).
+    const promptText = `You are an expert in creating educational content. Your task is to generate a list of questions based on the provided context (text or file).
 The questions should be in the same language as the source text, which is '${language}'.
 The questions should be of '${difficulty}' difficulty.
 
@@ -68,16 +68,20 @@ For every question, you MUST provide:
 5.  A boolean flag 'isInteractive'.
 
 CRITICAL: The output MUST be a valid JSON object that strictly adheres to the defined output schema. Do not output plain text or markdown.
-
-Analyze the provided file.
 `;
     
-    const promptParts: any[] = [];
+    const promptParts: any[] = [{ text: promptText }];
+
     if (image) {
-      promptParts.push({text: promptText});
+      // If an image/file is provided, use it as the primary context.
       promptParts.push({ media: { url: image } });
+      promptParts.push({ text: "\nAnalyze the provided file."});
+
+    } else if (text) {
+      // If no image, use the provided text as context.
+      promptParts.push({ text: `\nSource Text:\n'''\n${text}\n'''` });
     } else {
-      promptParts.push({ text: `${promptText}\nSource Text:\n'''\n${text}\n'''` });
+        throw new Error("Either text or an image must be provided to generate questions.");
     }
 
     const llmResponse = await ai.generate({

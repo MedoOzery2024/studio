@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, FileUp, Plus, Minus, Wand2, Download, Trash2, Check, XCircle, Lightbulb, Type, RotateCcw } from 'lucide-react';
+import { Loader2, FileUp, Wand2, Download, Trash2, Check, XCircle, Lightbulb, Type, RotateCcw, Minus, Plus } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -339,6 +339,7 @@ export function QuestionGenerator() {
             {generatedQuestions.length > 0 && (
                 <CardFooter className="flex flex-col items-start gap-4">
                     <h3 className="text-lg font-medium text-right w-full border-t border-border pt-4 text-primary">الأسئلة التي تم إنشاؤها</h3>
+                    {renderResults()}
                     <div className="w-full space-y-4">
                         {generatedQuestions.map((q, index) => {
                             const userAnswer = userAnswers.find(a => a.questionIndex === index);
@@ -359,13 +360,13 @@ export function QuestionGenerator() {
                                             return (
                                                 <div key={i} className={cn("flex items-center space-x-2 p-2 rounded-md border",
                                                     language === 'ar' ? "space-x-reverse" : "",
-                                                    !userAnswer ? "border-transparent" :
+                                                    !userAnswer ? "border-transparent hover:bg-card/70" :
                                                     isSelected && !isCorrectAnswer ? "bg-red-500/20 border-red-500" :
                                                     isCorrectAnswer ? "bg-green-500/20 border-green-500" : "border-transparent"
                                                 )}>
                                                     <RadioGroupItem value={opt} id={`q${index}-opt${i}`} />
                                                     <Label htmlFor={`q${index}-opt${i}`} className="flex-1 cursor-pointer">
-                                                        <span className="font-bold">{choices[i]}-</span> {opt}
+                                                        <span className="font-bold">{choices[i] || ''}-</span> {opt}
                                                     </Label>
                                                     {userAnswer && isSelected && !isCorrectAnswer && <XCircle className="w-5 h-5 text-red-500" />}
                                                     {userAnswer && isCorrectAnswer && <Check className="w-5 h-5 text-green-500" />}
@@ -385,7 +386,7 @@ export function QuestionGenerator() {
                             </Card>
                         )})}
                     </div>
-                    {renderResults()}
+                    
                     <div className="flex w-full justify-end items-center pt-4 border-t border-border mt-4 gap-2">
                        <Button variant="outline" onClick={handleDownload}>
                            <Download className="ml-2"/>
@@ -401,3 +402,5 @@ export function QuestionGenerator() {
         </Card>
     );
 }
+
+    

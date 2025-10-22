@@ -46,7 +46,7 @@ const generateQuestionsFlow = ai.defineFlow(
   {
     name: 'generateQuestionsFlow',
     inputSchema: GenerateQuestionsInputSchema,
-    outputSchema: z.string(), // The flow now returns a raw string
+    outputSchema: z.string(), // The flow returns a raw string
   },
   async input => {
     const { text, image, language, numQuestions, interactive, difficulty } = input;
@@ -86,7 +86,7 @@ ${text ? `\nSource Text:\n\'\'\'\n${text}\n\'\'\'` : ''}
     promptParts.push({ text: fullPromptText });
 
     const llmResponse = await ai.generate({
-      model: 'googleai/gemini-2.5-flash', // Using a more robust model
+      model: 'googleai/gemini-2.5-flash',
       prompt: promptParts,
       config: {
         temperature: 0.3,

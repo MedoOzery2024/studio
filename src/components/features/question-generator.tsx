@@ -3,8 +3,7 @@
 import { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Loader2, FileUp, Settings, Plus, Minus, Wand2, Download, Trash2, Check, XCircle, Lightbulb, FileText, Type, RotateCcw } from 'lucide-react';
+import { Loader2, FileUp, Plus, Minus, Wand2, Download, Trash2, Check, XCircle, Lightbulb, Type, RotateCcw } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';

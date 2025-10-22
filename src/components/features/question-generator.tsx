@@ -286,4 +286,3 @@ export function QuestionGenerator() {
         </Card>
     );
 }
-    

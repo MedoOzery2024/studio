@@ -249,6 +249,14 @@ export function AiAssistant() {
                                     <span className="sr-only">مسح المحادثة</span>
                                 </Button>
                             )}
+                            <Input
+                                id="file-upload-assistant"
+                                ref={fileInputRef}
+                                type="file"
+                                className="hidden"
+                                onChange={handleFileUpload}
+                                accept="image/*,application/pdf"
+                            />
                             <Button
                                 type="button"
                                 variant="outline"
@@ -284,5 +292,3 @@ export function AiAssistant() {
         </Card>
     );
 }
-
-    

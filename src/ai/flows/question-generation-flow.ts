@@ -50,14 +50,24 @@ const generateQuestionsFlow = ai.defineFlow(
   async input => {
     const { text, image, language, numQuestions, interactive, difficulty } = input;
 
-    const basePrompt = `You are an expert in creating educational content. Your task is to generate a list of questions based on the provided context (text or file).
+    const promptParts: any[] = [];
+
+    // Add image/pdf first if it exists
+    if (image) {
+        promptParts.push({ media: { url: image } });
+    } else if (!text) {
+        throw new Error("Either text or an image must be provided to generate questions.");
+    }
+    
+    // Construct the text prompt
+    const textPrompt = `You are an expert in creating educational content. Your task is to generate a list of questions based on the provided context (text or file).
 The questions should be in the same language as the source text, which is '${language}'.
 The questions should be of '${difficulty}' difficulty.
 
 Generate exactly ${numQuestions} questions.
 
-If 'interactive' is true, generate multiple-choice questions with four options each.
-If 'interactive' is false, generate direct questions with their corresponding answers (leave the 'options' array empty).
+If 'interactive' is true, you MUST generate multiple-choice questions with four options each.
+If 'interactive' is false, generate direct questions with their corresponding answers and an empty 'options' array.
 
 For every question, you MUST provide:
 1.  A clear question ('question').
@@ -65,42 +75,46 @@ For every question, you MUST provide:
 3.  The single correct answer ('correctAnswer').
 4.  A brief explanation of why the answer is correct ('explanation').
 
-CRITICAL: The output MUST be a valid JSON object that strictly adheres to the defined output schema. Do not output plain text or markdown.
+CRITICAL: The output MUST be a valid JSON object string that adheres to the defined schema. Do not add any text before or after the JSON object. Do not use markdown backticks like \`\`\`json.
+
+${text ? `\nSource Text:\n\'\'\'\n${text}\n\'\'\'` : ''}
 `;
-    
-    const promptParts: any[] = [];
-    let contextPrompt = '';
 
-    if (image) {
-        contextPrompt = "\nAnalyze the provided file and generate questions from it.";
-        promptParts.push({ media: { url: image } });
-    } else if (text) {
-        contextPrompt = `\nSource Text:\n'''\n${text}\n'''`;
-    } else {
-        throw new Error("Either text or an image must be provided to generate questions.");
-    }
-    
-    const fullPromptText = basePrompt + contextPrompt;
-    promptParts.push({ text: fullPromptText });
+    promptParts.push({ text: textPrompt });
 
+    // Use a more robust model and remove the output format constraint
     const llmResponse = await ai.generate({
       model: 'googleai/gemini-2.5-flash',
       prompt: promptParts,
-      output: {
-        format: 'json',
-        schema: GenerateQuestionsOutputSchema,
-      },
       config: {
-        temperature: 0.5, // Adjust for creativity vs. factuality
+        temperature: 0.5,
       }
     });
     
-    const output = llmResponse.output;
+    let responseText = llmResponse.text;
     
-    if (!output) {
-      throw new Error("Failed to get a structured response from the AI model.");
+    if (!responseText) {
+      throw new Error("Failed to get a response from the AI model.");
     }
     
-    return output;
+    // Clean the response to ensure it's a valid JSON string
+    // This is a robust way to handle responses wrapped in markdown
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      responseText = jsonMatch[0];
+    } else {
+        console.error("No valid JSON object found in the response:", responseText);
+        throw new Error("Response did not contain a valid JSON object.");
+    }
+
+    try {
+      const output = JSON.parse(responseText) as GenerateQuestionsOutput;
+      // Further validation with Zod if necessary
+      GenerateQuestionsOutputSchema.parse(output);
+      return output;
+    } catch (e) {
+        console.error("Failed to parse JSON response from LLM:", responseText, e);
+        throw new Error("Failed to get a valid structured response from the AI model.");
+    }
   }
 );

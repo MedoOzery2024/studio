@@ -14,7 +14,7 @@ import wav from 'wav';
 // Defines the input schema for the flow
 const TextToSpeechInputSchema = z.object({
   text: z.string().describe('The text to convert to speech.'),
-  voice: z.enum(['Algenib', 'Achernar', 'Spica', 'Hadar', 'Arcturus']).describe('The prebuilt voice to use.'),
+  voice: z.enum(['Algenib', 'Achernar', 'Erinome', 'Umbriel', 'Rasalgethi']).describe('The prebuilt voice to use.'),
 });
 export type TextToSpeechInput = z.infer<typeof TextToSpeechInputSchema>;
 

@@ -16,14 +16,14 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
-type Voice = 'Algenib' | 'Achernar' | 'Spica' | 'Hadar' | 'Arcturus';
+type Voice = 'Algenib' | 'Achernar' | 'Erinome' | 'Umbriel' | 'Rasalgethi';
 
 const voiceMap: Record<Voice, string> = {
     Algenib: 'رجل 1 (افتراضي)',
     Achernar: 'رجل 2',
-    Spica: 'امرأة 1',
-    Hadar: 'امرأة 2',
-    Arcturus: 'طفل',
+    Erinome: 'امرأة 1',
+    Umbriel: 'امرأة 2',
+    Rasalgethi: 'رجل 3',
 };
 
 

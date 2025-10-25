@@ -8,14 +8,13 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { generateQuestions, Question, GenerateQuestionsOutput } from '@/ai/flows/question-generation-flow';
+import { generateQuestions, type Question, type GenerateQuestionsOutput } from '@/ai/flows/question-generation-flow';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from '../ui/textarea';
-import { useUser, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
+import { useUser, useFirestore, useMemoFirebase, useCollection, setDocumentNonBlocking } from '@/firebase';
 import { collection, doc, deleteDoc } from 'firebase/firestore';
-import { setDocumentNonBlocking } from '@/firebase';
 import { ScrollArea } from '../ui/scroll-area';
 
 const MAX_QUESTIONS = 1000;
@@ -33,7 +32,6 @@ interface SavedSession {
     fileName: string;
     questions: Question[];
     isInteractive: boolean;
-    language: string; // Keep language for legacy data, but don't set it anymore
     uploadDate: string;
 }
 
@@ -114,7 +112,6 @@ export function QuestionGenerator() {
                 text: inputMode === 'text' ? sourceText : undefined,
                 image: inputMode === 'file' ? sourceFile! : undefined,
                 fileName: fileName,
-                language: 'auto', // AI will detect language from context
                 numQuestions: numQuestions,
                 interactive: isInteractive,
                 difficulty: difficulty,
@@ -263,12 +260,11 @@ export function QuestionGenerator() {
         try {
             const sessionId = selectedSessionId || doc(collection(firestore, `users/${user.uid}/questionSessions`)).id;
             const docRef = doc(firestore, `users/${user.uid}/questionSessions`, sessionId);
-            const dataToSave: Omit<SavedSession, 'language'> & { language: string } = {
+            const dataToSave: Omit<SavedSession, 'id'> & { id: string; uploadDate: string } = {
                 id: sessionId,
                 fileName: finalFileName,
                 questions: generatedQuestions,
                 isInteractive,
-                language: 'auto', // Language is auto-detected
                 uploadDate: new Date().toISOString(),
             };
             setDocumentNonBlocking(docRef, dataToSave, { merge: true });

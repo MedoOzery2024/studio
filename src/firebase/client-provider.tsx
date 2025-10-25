@@ -35,8 +35,9 @@ function useAuthSubscription(auth: Auth | null): { user: User | null; isUserLoad
     const unsubscribe = onAuthStateChanged(
       auth,
       (newUser) => {
-        setUser(newUser); // Set user to newUser, which can be null on logout
-        if (!newUser) {
+        if (newUser) {
+          setUser(newUser);
+        } else {
           // If user logs out or session expires, sign in anonymously again.
           signInAnonymously(auth).catch((error) => {
             console.error("Anonymous re-sign-in failed:", error);

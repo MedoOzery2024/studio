@@ -121,18 +121,13 @@
           "type": "boolean",
           "description": "Whether the questions are multiple-choice."
         },
-        "language": {
-          "type": "string",
-          "enum": ["ar", "en"],
-          "description": "The language of the questions."
-        },
         "uploadDate": {
           "type": "string",
           "description": "The date and time when the session was saved.",
           "format": "date-time"
         }
       },
-      "required": ["id", "fileName", "questions", "isInteractive", "language", "uploadDate"]
+      "required": ["id", "fileName", "questions", "isInteractive", "uploadDate"]
     }
   },
   "auth": {
@@ -142,64 +137,23 @@
     ]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/users/{userId}",
-        "definition": {
-          "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Stores user profile information. Path-based ownership ensures only the user can modify their own profile.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            }
-          ]
-        }
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/User"
       },
-      {
-        "path": "/users/{userId}/uploadedFiles/{fileId}",
-        "definition": {
-          "entityName": "UploadedFile",
-          "schema": {
-            "$ref": "#/backend/entities/UploadedFile"
-          },
-          "description": "Stores files and text content created by each user. Includes denormalized 'userId' for authorization independence.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user who created the content."
-            },
-            {
-              "name": "fileId",
-              "description": "The unique identifier for the content."
-            }
-          ]
-        }
+      "description": "Stores user profile information. Path-based ownership ensures only the user can modify their own profile."
+    },
+    "/users/{userId}/uploadedFiles/{fileId}": {
+      "schema": {
+        "$ref": "#/entities/UploadedFile"
       },
-       {
-        "path": "/users/{userId}/questionSessions/{sessionId}",
-        "definition": {
-          "entityName": "QuestionSession",
-          "schema": {
-            "$ref": "#/backend/entities/QuestionSession"
-          },
-          "description": "Stores generated question sessions for each user. Path-based ownership ensures only the user can access their own sessions.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            },
-            {
-              "name": "sessionId",
-              "description": "The unique identifier for the question session."
-            }
-          ]
-        }
-      }
-    ],
-    "reasoning": "The Firestore data structure is designed to provide a secure and scalable solution for the Medo.Ai Time Hub application, focusing on efficient file storage and retrieval, and user management. The design adheres to the core principles of Authorization Independence, Clarity of Intent, DBAC, and QAPs. It leverages Structural Segregation to ensure each collection has a homogeneous security posture and Access Modeling for consistent authorization patterns.\n\nAuthorization Independence is achieved by denormalizing the `userId` into the `uploadedFiles` collection. This eliminates the need for `get()` calls to the `/users/{userId}` document to verify ownership, allowing for atomic operations and simplified security rules.\n\nThe design supports QAPs by segregating user-specific files under the `/users/{userId}/uploadedFiles/{fileId}` path. This ensures that listing files is restricted to authorized users only, as security rules can easily enforce that only the user with the matching `userId` can access these files. This also provides a clear ownership model, making security rules simple and robust."
+      "description": "Stores files and text content created by each user. Includes denormalized 'userId' for authorization independence."
+    },
+    "/users/{userId}/questionSessions/{sessionId}": {
+      "schema": {
+        "$ref": "#/entities/QuestionSession"
+      },
+      "description": "Stores generated question sessions for each user. Path-based ownership ensures only the user can access their own sessions."
+    }
   }
 }

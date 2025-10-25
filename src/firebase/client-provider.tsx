@@ -1,54 +1,135 @@
 'use client';
 
-import React, { useMemo, type ReactNode, useEffect } from 'react';
-import { FirebaseProvider } from '@/firebase/provider';
-import { initializeFirebase } from '@/firebase';
-import { initiateAnonymousSignIn } from './non-blocking-login';
-import { Auth, onAuthStateChanged } from 'firebase/auth';
+import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
+import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
+import { getAuth, type Auth, onAuthStateChanged, User, signInAnonymously } from 'firebase/auth';
+import { getFirestore, type Firestore } from 'firebase/firestore';
+import { firebaseConfig } from '@/firebase/config';
+import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
-interface FirebaseClientProviderProps {
-  children: ReactNode;
+// --- Interfaces ---
+interface FirebaseContextValue {
+  firebaseApp: FirebaseApp | null;
+  auth: Auth | null;
+  firestore: Firestore | null;
+  user: User | null;
+  isUserLoading: boolean;
+  userError: Error | null;
 }
 
-/**
- * An internal component that handles the anonymous authentication lifecycle.
- * It ensures a user is always signed in.
- */
-function AuthHandler({ auth }: { auth: Auth | null }) {
+// --- Context ---
+const FirebaseContext = createContext<FirebaseContextValue | undefined>(undefined);
+
+// --- Auth Subscription Hook ---
+function useAuthSubscription(auth: Auth | null): { user: User | null; isUserLoading: boolean; userError: Error | null } {
+  const [user, setUser] = useState<User | null>(auth?.currentUser || null);
+  const [isUserLoading, setIsUserLoading] = useState(true);
+  const [userError, setUserError] = useState<Error | null>(null);
+
   useEffect(() => {
-    // Do nothing if the auth service isn't available yet.
-    if (!auth) return;
+    if (!auth) {
+      setIsUserLoading(false);
+      return;
+    }
 
-    // Set up a listener for authentication state changes.
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      // If the user is null (not signed in), initiate a new anonymous sign-in.
-      if (!user) {
-        initiateAnonymousSignIn(auth);
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      (newUser) => {
+        if (newUser) {
+          setUser(newUser);
+        } else {
+          // If the user logs out or session expires, sign in anonymously again
+          signInAnonymously(auth).catch((error) => {
+            console.error("Anonymous re-sign-in failed:", error);
+            setUserError(error);
+          });
+        }
+        setIsUserLoading(false);
+      },
+      (error) => {
+        console.error("Auth state change error:", error);
+        setUserError(error);
+        setIsUserLoading(false);
       }
-    });
+    );
 
-    // Cleanup the subscription when the component unmounts.
+    // Initial sign-in if no user is present
+    if (!auth.currentUser) {
+      signInAnonymously(auth).catch((error) => {
+        console.error("Initial anonymous sign-in failed:", error);
+        setUserError(error);
+        setIsUserLoading(false);
+      });
+    }
+
+
     return () => unsubscribe();
-  }, [auth]); // Re-run the effect if the auth instance changes.
+  }, [auth]);
 
-  return null; // This component does not render anything to the UI.
+  return { user, isUserLoading, userError };
 }
 
 
-export function FirebaseClientProvider({ children }: FirebaseClientProviderProps) {
+// --- Provider Component ---
+function FirebaseProvider({ children }: { children: ReactNode }) {
   const firebaseServices = useMemo(() => {
-    // Initialize Firebase on the client side, once per provider mount.
-    return initializeFirebase();
+    if (getApps().length === 0) {
+      initializeApp(firebaseConfig);
+    }
+    const app = getApp();
+    const auth = getAuth(app);
+    const firestore = getFirestore(app);
+    return { firebaseApp: app, auth, firestore };
   }, []);
 
+  const { user, isUserLoading, userError } = useAuthSubscription(firebaseServices.auth);
+
+  const contextValue = useMemo((): FirebaseContextValue => ({
+    ...firebaseServices,
+    user,
+    isUserLoading,
+    userError,
+  }), [firebaseServices, user, isUserLoading, userError]);
+
   return (
-    <FirebaseProvider
-      firebaseApp={firebaseServices.firebaseApp}
-      auth={firebaseServices.auth}
-      firestore={firebaseServices.firestore}
-    >
-      <AuthHandler auth={firebaseServices.auth} />
+    <FirebaseContext.Provider value={contextValue}>
+      <FirebaseErrorListener />
       {children}
-    </FirebaseProvider>
+    </FirebaseContext.Provider>
   );
+}
+
+
+// --- Client Provider Wrapper ---
+export function FirebaseClientProvider({ children }: { children: ReactNode }) {
+  // This component ensures FirebaseProvider and its context are only rendered on the client.
+  return <FirebaseProvider>{children}</FirebaseProvider>;
+}
+
+
+// --- Exported Hooks for component consumption ---
+function useFirebaseContext() {
+    const context = useContext(FirebaseContext);
+    if (context === undefined) {
+        throw new Error('useFirebaseContext must be used within a FirebaseProvider.');
+    }
+    return context;
+}
+
+export const useAuth = (): Auth | null => useFirebaseContext().auth;
+export const useFirestore = (): Firestore | null => useFirebaseContext().firestore;
+export const useFirebaseApp = (): FirebaseApp | null => useFirebaseContext().firebaseApp;
+export const useUser = (): { user: User | null, isUserLoading: boolean, userError: Error | null } => {
+    const { user, isUserLoading, userError } = useFirebaseContext();
+    return { user, isUserLoading, userError };
+};
+
+export function useMemoFirebase<T>(factory: () => T, deps: React.DependencyList): T {
+  const memoized = useMemo(factory, deps);
+  
+  if (typeof memoized === 'object' && memoized !== null) {
+    (memoized as T & { __memo?: boolean }).__memo = true;
+  }
+  
+  return memoized;
 }

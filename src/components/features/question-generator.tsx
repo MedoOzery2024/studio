@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, FileUp, Wand2, Download, Trash2, Check, XCircle, Lightbulb, Type, RotateCcw, Minus, Plus, FileText, View, PlusCircle, FileJson, FileType } from 'lucide-react';
+import { Loader2, FileUp, Wand2, Download, Trash2, Check, XCircle, Lightbulb, Type, RotateCcw, Minus, Plus, FileText, View, PlusCircle, FileType } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -171,6 +171,7 @@ export function QuestionGenerator() {
     };
 
     const handleAnswerSelect = (questionIndex: number, selectedOption: string) => {
+        if (selectedOption === undefined) return;
         const question = generatedQuestions[questionIndex];
         const isCorrect = question.correctAnswer === selectedOption;
         
@@ -189,12 +190,13 @@ export function QuestionGenerator() {
     const clearInputs = () => {
         setSourceFile(null);
         setSourceText('');
+        setFileName('');
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
     };
 
-    const handleDownload = async (format: 'txt' | 'pdf' | 'json') => {
+    const handleDownload = async (format: 'txt' | 'pdf') => {
         if (generatedQuestions.length === 0) {
             toast({ variant: "destructive", title: "لا توجد أسئلة للتنزيل" });
             return;
@@ -240,9 +242,6 @@ export function QuestionGenerator() {
             blob = doc.output('blob');
             fileExtension = 'pdf';
 
-        } else if (format === 'json') {
-             blob = new Blob([JSON.stringify(generatedQuestions, null, 2)], { type: 'application/json' });
-             fileExtension = 'json';
         } else { // txt
             let content = `الأسئلة التي تم إنشاؤها من: ${fileName || 'نص مخصص'}\n\n`;
             content += "========================================\n\n";
@@ -423,7 +422,7 @@ export function QuestionGenerator() {
                                         <Switch id="interactive-switch" checked={isInteractive} onCheckedChange={(checked) => { setIsInteractive(checked); if (!checked) setQuizState('not-started'); }} />
                                     </div>
                                 </div>
-                                <div className="space-y-3 mt-4">
+                                <div className="space-y-3">
                                     <Label className="font-semibold text-foreground">مستوى الصعوبة</Label>
                                     <RadioGroup value={difficulty} onValueChange={(value: Difficulty) => setDifficulty(value)} className="grid grid-cols-3 gap-2" dir="rtl">
                                         {(['easy', 'medium', 'hard'] as Difficulty[]).map((level) => {
@@ -581,6 +580,21 @@ export function QuestionGenerator() {
                         </div>
                     </CardHeader>
                     {renderMainContent()}
+                     <CardFooter className="flex flex-col items-start gap-4">
+                        <div className='w-full'>
+                            <h3 className="text-lg font-medium text-right w-full border-t border-border pt-4 text-primary">خيارات التنزيل</h3>
+                            <div className="grid grid-cols-2 gap-2 mt-4">
+                                <Button variant="outline" onClick={() => handleDownload('txt')} disabled={!generatedQuestions.length}>
+                                    <FileText className="ml-2"/>
+                                    TXT
+                                </Button>
+                                    <Button variant="outline" onClick={() => handleDownload('pdf')} disabled={!generatedQuestions.length}>
+                                    <FileType className="ml-2"/>
+                                    PDF
+                                </Button>
+                            </div>
+                        </div>
+                     </CardFooter>
                 </Card>
             </div>
 
@@ -603,18 +617,8 @@ export function QuestionGenerator() {
                                     disabled={isSaving}
                                 />
                              </div>
-                             <div className="grid grid-cols-2 gap-2">
-                                <Button variant="outline" onClick={() => handleDownload('txt')} disabled={!generatedQuestions.length}>
-                                    <FileText className="ml-2"/>
-                                    TXT
-                                </Button>
-                                 <Button variant="outline" onClick={() => handleDownload('pdf')} disabled={!generatedQuestions.length}>
-                                    <FileType className="ml-2"/>
-                                    PDF
-                                </Button>
-                             </div>
                              
-                            <ScrollArea className="h-96 w-full mt-2 border-t border-border pt-4">
+                            <ScrollArea className="h-[calc(100vh-22rem)] w-full mt-2 border-t border-border pt-4">
                                 <ul className="w-full space-y-2 pr-2">
                                     {isLoadingFiles && <p className='text-center w-full text-muted-foreground'>جاري تحميل الجلسات...</p>}
                                     {savedSessions && savedSessions.map((session) => (
@@ -643,3 +647,5 @@ export function QuestionGenerator() {
         </div>
     );
 }
+
+    

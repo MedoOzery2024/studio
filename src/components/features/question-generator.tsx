@@ -13,7 +13,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from '../ui/textarea';
-import { useUser, useFirestore, useMemoFirebase, useCollection, setDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection } from '@/firebase';
 import { collection, doc, deleteDoc, setDoc } from 'firebase/firestore';
 import { ScrollArea } from '../ui/scroll-area';
 
@@ -121,11 +122,16 @@ export function QuestionGenerator() {
 
             let result: GenerateQuestionsOutput;
             try {
+                // Try to find JSON within backticks or as a standalone object/array
                 const jsonMatch = rawResult.match(/```json\s*([\s\S]*?)\s*```|(\[[\s\S]*\]|\{[\s\S]*\})/);
-                if (!jsonMatch) throw new Error("Response did not contain a valid JSON object or array.");
-                const jsonString = jsonMatch[1] || jsonMatch[2];
-                result = JSON.parse(jsonString);
-
+                if (!jsonMatch) {
+                    // Fallback for raw JSON string without backticks
+                    JSON.parse(rawResult);
+                    result = JSON.parse(rawResult);
+                } else {
+                    const jsonString = jsonMatch[1] || jsonMatch[2];
+                     result = JSON.parse(jsonString);
+                }
             } catch(e) {
                  console.error("Failed to parse JSON response from LLM:", rawResult, e);
                  toast({
@@ -179,6 +185,7 @@ export function QuestionGenerator() {
     const clearInputs = () => {
         setSourceFile(null);
         setSourceText('');
+        setFileName('');
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
@@ -249,11 +256,11 @@ export function QuestionGenerator() {
             return;
         }
         if (generatedQuestions.length === 0) {
-            toast({ variant: 'destructive', title: 'لا توجد أسئلة للحفظ' });
+            // Don't toast here, as it can be annoying on blur
             return;
         }
         if (!currentFileName.trim()) {
-            toast({ variant: 'destructive', title: 'اسم الجلسة مطلوب' });
+            toast({ variant: 'destructive', title: 'اسم الجلسة مطلوب للحفظ' });
             return;
         }
 
@@ -288,7 +295,9 @@ export function QuestionGenerator() {
         setIsInteractive(session.isInteractive);
         setSelectedSessionId(session.id);
         setUserAnswers([]);
-        clearInputs(); // Clear file/text inputs
+        clearInputs(); // Clear file/text inputs but keep the session name
+        setSourceFile(null);
+        setSourceText('');
         toast({ title: `جاري عرض: ${session.fileName}` });
     };
 
@@ -325,7 +334,9 @@ export function QuestionGenerator() {
                     <CardHeader>
                         <div className="flex justify-between items-center">
                             <CardTitle className="text-xl font-bold text-primary">توليد الأسئلة من المحتوى</CardTitle>
-                            <Button variant="outline" onClick={handleNewSession}><PlusCircle className="ml-2 h-4 w-4"/> جلسة جديدة</Button>
+                             {(!selectedSessionId && generatedQuestions.length === 0) ? null : (
+                                <Button variant="outline" onClick={handleNewSession}><PlusCircle className="ml-2 h-4 w-4"/> جلسة جديدة</Button>
+                             )}
                         </div>
                     </CardHeader>
                     <CardContent className="space-y-6">
@@ -495,11 +506,7 @@ export function QuestionGenerator() {
                                     id="sessionName"
                                     value={fileName}
                                     onChange={(e) => setFileName(e.target.value)}
-                                    onBlur={(e) => {
-                                        if (generatedQuestions.length > 0) {
-                                            handleSaveSession(e.target.value);
-                                        }
-                                    }}
+                                    onBlur={(e) => handleSaveSession(e.target.value)}
                                     placeholder="أدخل اسمًا للحفظ..."
                                     className="text-right bg-secondary focus-visible:ring-primary w-full"
                                     disabled={isSaving}
@@ -510,9 +517,9 @@ export function QuestionGenerator() {
                                     <Download className="ml-2"/>
                                     تنزيل
                                 </Button>
-                                <Button variant="destructive" onClick={handleNewSession}>
+                                <Button variant="destructive" onClick={clearInputs}>
                                     <Trash2 className="ml-2"/>
-                                    مسح الكل
+                                    مسح المدخلات
                                 </Button>
                              </div>
                              
@@ -548,3 +555,5 @@ export function QuestionGenerator() {
         </div>
     );
 }
+
+    

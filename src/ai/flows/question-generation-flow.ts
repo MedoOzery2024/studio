@@ -23,7 +23,7 @@ const GenerateQuestionsInputSchema = z.object({
   text: z.string().optional().describe('The source text from which to generate questions.'),
   image: z.string().optional().describe("An optional image/PDF file (as a data URI) to analyze for question generation."),
   fileName: z.string().optional().describe("The name of the file being processed."),
-  language: z.string().describe('The language of the source text (e.g., "ar", "en", "fr"). The AI will attempt to match this language.'),
+  language: z.string().describe('The language for the AI to attempt to match (e.g., "ar", "en"). The AI should primarily infer from the context.'),
   numQuestions: z.number().min(1).max(1000).describe('The number of questions to generate.'),
   interactive: z.boolean().describe('Whether to generate interactive (multiple-choice) questions or not.'),
   difficulty: z.enum(['easy', 'medium', 'hard']).describe('The difficulty level of the questions.'),
@@ -31,7 +31,6 @@ const GenerateQuestionsInputSchema = z.object({
 export type GenerateQuestionsInput = z.infer<typeof GenerateQuestionsInputSchema>;
 
 // Defines the output schema for the flow
-// Note: The flow itself will return a string, which the client will parse.
 const GenerateQuestionsOutputSchema = z.object({
   questions: z.array(QuestionSchema),
 });
@@ -50,7 +49,7 @@ const generateQuestionsFlow = ai.defineFlow(
     outputSchema: z.string(), // The flow returns a raw string
   },
   async input => {
-    const { text, image, language, numQuestions, interactive, difficulty } = input;
+    const { text, image, numQuestions, interactive, difficulty } = input;
 
     const promptParts: any[] = [];
     
@@ -65,7 +64,7 @@ const generateQuestionsFlow = ai.defineFlow(
     
     // Construct the text prompt
     const fullPromptText = `You are an expert in creating educational content. Your task is to generate a list of questions based on the provided context (text or file).
-The questions should be in the same language as the source text. The user has indicated the language is '${language}', but you should primarily rely on the language of the provided context.
+You MUST identify the language of the source material and generate the questions in that same language.
 The questions should be of '${difficulty}' difficulty.
 
 Generate exactly ${numQuestions} questions.

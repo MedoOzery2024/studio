@@ -13,7 +13,6 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from '../ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { useUser, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
 import { collection, doc, deleteDoc } from 'firebase/firestore';
 import { setDocumentNonBlocking } from '@/firebase';
@@ -22,7 +21,6 @@ import { ScrollArea } from '../ui/scroll-area';
 const MAX_QUESTIONS = 1000;
 type Difficulty = 'easy' | 'medium' | 'hard';
 type InputMode = 'file' | 'text';
-type Language = 'ar' | 'en';
 
 interface UserAnswer {
     questionIndex: number;
@@ -35,7 +33,7 @@ interface SavedSession {
     fileName: string;
     questions: Question[];
     isInteractive: boolean;
-    language: Language;
+    language: string; // Keep language for legacy data, but don't set it anymore
     uploadDate: string;
 }
 
@@ -49,7 +47,6 @@ export function QuestionGenerator() {
     const [numQuestions, setNumQuestions] = useState(5);
     const [isInteractive, setIsInteractive] = useState(true);
     const [difficulty, setDifficulty] = useState<Difficulty>('medium');
-    const [language, setLanguage] = useState<Language>('ar');
     const [inputMode, setInputMode] = useState<InputMode>('file');
     const [fileName, setFileName] = useState('');
     const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
@@ -117,7 +114,7 @@ export function QuestionGenerator() {
                 text: inputMode === 'text' ? sourceText : undefined,
                 image: inputMode === 'file' ? sourceFile! : undefined,
                 fileName: fileName,
-                language: language,
+                language: 'auto', // AI will detect language from context
                 numQuestions: numQuestions,
                 interactive: isInteractive,
                 difficulty: difficulty,
@@ -266,12 +263,12 @@ export function QuestionGenerator() {
         try {
             const sessionId = selectedSessionId || doc(collection(firestore, `users/${user.uid}/questionSessions`)).id;
             const docRef = doc(firestore, `users/${user.uid}/questionSessions`, sessionId);
-            const dataToSave: SavedSession = {
+            const dataToSave: Omit<SavedSession, 'language'> & { language: string } = {
                 id: sessionId,
                 fileName: finalFileName,
                 questions: generatedQuestions,
                 isInteractive,
-                language,
+                language: 'auto', // Language is auto-detected
                 uploadDate: new Date().toISOString(),
             };
             setDocumentNonBlocking(docRef, dataToSave, { merge: true });
@@ -289,7 +286,6 @@ export function QuestionGenerator() {
         setGeneratedQuestions(session.questions);
         setFileName(session.fileName);
         setIsInteractive(session.isInteractive);
-        setLanguage(session.language);
         setSelectedSessionId(session.id);
         setUserAnswers([]);
         // Reset source inputs
@@ -436,8 +432,9 @@ export function QuestionGenerator() {
                                 {generatedQuestions.map((q, index) => {
                                     const userAnswer = userAnswers.find(a => a.questionIndex === index);
                                     const choices = ['أ', 'ب', 'ج', 'د'];
+                                    const isRtl = /[\u0600-\u06FF]/.test(q.question);
                                     return (
-                                    <Card key={index} className="bg-secondary p-4" dir={language === 'ar' ? 'rtl' : 'ltr'}>
+                                    <Card key={index} className="bg-secondary p-4" dir={isRtl ? 'rtl' : 'ltr'}>
                                         <p className="font-bold">{`${index + 1}. ${q.question}`}</p>
                                         {isInteractive && q.options && q.options.length > 0 ? (
                                             <RadioGroup
@@ -451,14 +448,14 @@ export function QuestionGenerator() {
                                                     const isCorrectAnswer = q.correctAnswer === opt;
                                                     return (
                                                         <div key={i} className={cn("flex items-center space-x-2 p-2 rounded-md border",
-                                                            language === 'ar' ? "space-x-reverse" : "",
+                                                            isRtl ? "space-x-reverse" : "",
                                                             !userAnswer ? "border-transparent hover:bg-card/70" :
                                                             isSelected && !isCorrectAnswer ? "bg-red-500/20 border-red-500" :
                                                             isCorrectAnswer ? "bg-green-500/20 border-green-500" : "border-transparent"
                                                         )}>
                                                             <RadioGroupItem value={opt} id={`q${index}-opt${i}`} />
                                                             <Label htmlFor={`q${index}-opt${i}`} className="flex-1 cursor-pointer">
-                                                                <span className="font-bold">{choices[i] || ''}-</span> {opt}
+                                                                <span className="font-bold">{isRtl ? choices[i] : String.fromCharCode(65 + i)}-</span> {opt}
                                                             </Label>
                                                             {userAnswer && isSelected && !isCorrectAnswer && <XCircle className="w-5 h-5 text-red-500" />}
                                                             {userAnswer && isCorrectAnswer && <Check className="w-5 h-5 text-green-500" />}
@@ -471,7 +468,7 @@ export function QuestionGenerator() {
                                         )}
                                         {userAnswer && (
                                             <div className="mt-3 p-3 bg-card rounded-md border border-border">
-                                                <p className="font-bold flex items-center gap-2"><Lightbulb className="w-5 h-5 text-primary" /> {language === 'ar' ? 'الشرح:' : 'Explanation:'}</p>
+                                                <p className="font-bold flex items-center gap-2"><Lightbulb className="w-5 h-5 text-primary" /> {isRtl ? 'الشرح:' : 'Explanation:'}</p>
                                                 <p className="text-muted-foreground">{q.explanation}</p>
                                             </div>
                                         )}

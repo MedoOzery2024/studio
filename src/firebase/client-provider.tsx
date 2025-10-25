@@ -35,10 +35,9 @@ function useAuthSubscription(auth: Auth | null): { user: User | null; isUserLoad
     const unsubscribe = onAuthStateChanged(
       auth,
       (newUser) => {
-        if (newUser) {
-          setUser(newUser);
-        } else {
-          // If the user logs out or session expires, sign in anonymously again
+        setUser(newUser); // Set user to newUser, which can be null on logout
+        if (!newUser) {
+          // If user logs out or session expires, sign in anonymously again.
           signInAnonymously(auth).catch((error) => {
             console.error("Anonymous re-sign-in failed:", error);
             setUserError(error);
@@ -53,12 +52,11 @@ function useAuthSubscription(auth: Auth | null): { user: User | null; isUserLoad
       }
     );
 
-    // Initial sign-in if no user is present
+    // Initial anonymous sign-in if there's no user.
     if (!auth.currentUser) {
       signInAnonymously(auth).catch((error) => {
         console.error("Initial anonymous sign-in failed:", error);
         setUserError(error);
-        setIsUserLoading(false);
       });
     }
 
@@ -73,10 +71,7 @@ function useAuthSubscription(auth: Auth | null): { user: User | null; isUserLoad
 // --- Provider Component ---
 function FirebaseProvider({ children }: { children: ReactNode }) {
   const firebaseServices = useMemo(() => {
-    if (getApps().length === 0) {
-      initializeApp(firebaseConfig);
-    }
-    const app = getApp();
+    const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
     const auth = getAuth(app);
     const firestore = getFirestore(app);
     return { firebaseApp: app, auth, firestore };

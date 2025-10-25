@@ -23,7 +23,6 @@ const GenerateQuestionsInputSchema = z.object({
   text: z.string().optional().describe('The source text from which to generate questions.'),
   image: z.string().optional().describe("An optional image/PDF file (as a data URI) to analyze for question generation."),
   fileName: z.string().optional().describe("The name of the file being processed."),
-  language: z.string().describe('The language for the AI to attempt to match (e.g., "ar", "en"). The AI should primarily infer from the context.'),
   numQuestions: z.number().min(1).max(1000).describe('The number of questions to generate.'),
   interactive: z.boolean().describe('Whether to generate interactive (multiple-choice) questions or not.'),
   difficulty: z.enum(['easy', 'medium', 'hard']).describe('The difficulty level of the questions.'),

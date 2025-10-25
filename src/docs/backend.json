@@ -121,18 +121,13 @@
           "type": "boolean",
           "description": "Whether the questions are multiple-choice."
         },
-        "language": {
-          "type": "string",
-          "enum": ["ar", "en"],
-          "description": "The language of the questions."
-        },
         "uploadDate": {
           "type": "string",
           "description": "The date and time when the session was saved.",
           "format": "date-time"
         }
       },
-      "required": ["id", "fileName", "questions", "isInteractive", "language", "uploadDate"]
+      "required": ["id", "fileName", "questions", "isInteractive", "uploadDate"]
     }
   },
   "auth": {

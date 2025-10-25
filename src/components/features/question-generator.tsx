@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, FileUp, Wand2, Download, Trash2, Check, XCircle, Lightbulb, Type, RotateCcw, Minus, Plus, FileText, View, PlusCircle } from 'lucide-react';
+import { Loader2, FileUp, Wand2, Download, Trash2, Check, XCircle, Lightbulb, Type, RotateCcw, Minus, Plus, FileText, View, PlusCircle, FileJson, FileType } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -17,10 +17,12 @@ import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
 import { useCollection } from '@/firebase';
 import { collection, doc, deleteDoc, setDoc } from 'firebase/firestore';
 import { ScrollArea } from '../ui/scroll-area';
+import { Progress } from '@/components/ui/progress';
 
 const MAX_QUESTIONS = 1000;
 type Difficulty = 'easy' | 'medium' | 'hard';
 type InputMode = 'file' | 'text';
+type QuizState = 'not-started' | 'in-progress' | 'finished';
 
 interface UserAnswer {
     questionIndex: number;
@@ -35,6 +37,7 @@ interface SavedSession {
     isInteractive: boolean;
     uploadDate: string;
     userId: string;
+    userAnswers?: UserAnswer[];
 }
 
 export function QuestionGenerator() {
@@ -50,6 +53,8 @@ export function QuestionGenerator() {
     const [inputMode, setInputMode] = useState<InputMode>('file');
     const [fileName, setFileName] = useState('');
     const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+    const [quizState, setQuizState] = useState<QuizState>('not-started');
+    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { toast } = useToast();
@@ -107,8 +112,6 @@ export function QuestionGenerator() {
         setIsGenerating(true);
         setGeneratedQuestions([]);
         setUserAnswers([]);
-        // Keep session ID if we're regenerating questions for an existing session
-        // setSelectedSessionId(null); 
 
         try {
             const rawResult = await generateQuestions({
@@ -122,10 +125,8 @@ export function QuestionGenerator() {
 
             let result: GenerateQuestionsOutput;
             try {
-                // Try to find JSON within backticks or as a standalone object/array
                 const jsonMatch = rawResult.match(/```json\s*([\s\S]*?)\s*```|(\[[\s\S]*\]|\{[\s\S]*\})/);
                 if (!jsonMatch) {
-                    // Fallback for raw JSON string without backticks
                     JSON.parse(rawResult);
                     result = JSON.parse(rawResult);
                 } else {
@@ -145,6 +146,7 @@ export function QuestionGenerator() {
 
             if (result && result.questions && result.questions.length > 0) {
                 setGeneratedQuestions(result.questions);
+                setQuizState('not-started');
                 toast({
                     title: 'تم توليد الأسئلة بنجاح!',
                     description: `تم إنشاء ${result.questions.length} سؤال.`,
@@ -167,7 +169,7 @@ export function QuestionGenerator() {
             setIsGenerating(false);
         }
     };
-    
+
     const handleAnswerSelect = (questionIndex: number, selectedOption: string) => {
         const question = generatedQuestions[questionIndex];
         const isCorrect = question.correctAnswer === selectedOption;
@@ -180,70 +182,89 @@ export function QuestionGenerator() {
     
     const resetSession = () => {
         setUserAnswers([]);
+        setCurrentQuestionIndex(0);
+        setQuizState('in-progress');
     };
     
     const clearInputs = () => {
         setSourceFile(null);
         setSourceText('');
-        setFileName('');
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
     };
 
-    const renderResults = () => {
-        if (!isInteractive || userAnswers.length !== generatedQuestions.length || generatedQuestions.length === 0) {
-            return null;
-        }
-        const correctCount = userAnswers.filter(a => a.isCorrect).length;
-        const totalCount = generatedQuestions.length;
-        const score = (correctCount / totalCount) * 100;
-
-        return (
-            <div className="w-full border-t border-border pt-4 mt-6 text-center space-y-4">
-                 <h3 className="text-xl font-bold text-primary">النتيجة النهائية</h3>
-                 <p className="text-lg">لقد أجبت على <span className="font-bold text-foreground">{correctCount}</span> من <span className="font-bold text-foreground">{totalCount}</span> بشكل صحيح.</p>
-                 <div className="w-full bg-secondary rounded-full h-4">
-                     <div 
-                        className="bg-primary h-4 rounded-full transition-all duration-500" 
-                        style={{ width: `${score}%`}}
-                    ></div>
-                 </div>
-                 <Button onClick={resetSession} variant="outline">
-                    <RotateCcw className="ml-2 h-4 w-4"/>
-                    إعادة المحاولة
-                 </Button>
-            </div>
-        );
-    }
-
-    const handleDownload = () => {
+    const handleDownload = async (format: 'txt' | 'pdf' | 'json') => {
         if (generatedQuestions.length === 0) {
-            toast({
-                variant: "destructive",
-                title: "لا توجد أسئلة للتنزيل",
-            });
+            toast({ variant: "destructive", title: "لا توجد أسئلة للتنزيل" });
             return;
         }
-        let content = `الأسئلة التي تم إنشاؤها من: ${fileName || 'نص مخصص'}\n\n`;
-        content += "========================================\n\n";
-        generatedQuestions.forEach((q, index) => {
-            content += `سؤال ${index + 1}: ${q.question}\n`;
-            if (isInteractive && q.options && q.options.length > 0) {
-                const choices = ['أ', 'ب', 'ج', 'د'];
-                content += "الخيارات:\n";
-                q.options.forEach((opt, i) => content += `${choices[i]}- ${opt}\n`);
-            }
-            content += `الإجابة الصحيحة: ${q.correctAnswer}\n`;
-            content += `الشرح: ${q.explanation}\n\n`;
-            content += "----------------------------------------\n\n";
-        });
-        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+
+        const downloadFileName = (fileName ? fileName.split('.').slice(0, -1).join('.') : 'أسئلة');
+        let blob: Blob;
+        let fileExtension: string;
+
+        if (format === 'pdf') {
+            const { default: jsPDF } = await import('jspdf');
+            // You might need to add a custom font that supports Arabic
+            const doc = new jsPDF();
+            
+            let y = 10;
+            doc.text(`Generated Questions from: ${fileName || 'Custom Text'}`, 10, y);
+            y += 10;
+
+            generatedQuestions.forEach((q, index) => {
+                if (y > 280) {
+                    doc.addPage();
+                    y = 10;
+                }
+                const questionText = doc.splitTextToSize(`Q${index + 1}: ${q.question}`, 180);
+                doc.text(questionText, 10, y);
+                y += questionText.length * 5;
+
+                if (isInteractive && q.options && q.options.length > 0) {
+                    q.options.forEach((opt) => {
+                        const optionText = doc.splitTextToSize(`- ${opt}`, 170);
+                        doc.text(optionText, 15, y);
+                        y += optionText.length * 5;
+                    });
+                }
+                 const answerText = doc.splitTextToSize(`Answer: ${q.correctAnswer}`, 180);
+                 doc.text(answerText, 10, y);
+                 y += answerText.length * 5;
+
+                 const explanationText = doc.splitTextToSize(`Explanation: ${q.explanation}`, 180);
+                 doc.text(explanationText, 10, y);
+                 y += explanationText.length * 5 + 10;
+            });
+            blob = doc.output('blob');
+            fileExtension = 'pdf';
+
+        } else if (format === 'json') {
+             blob = new Blob([JSON.stringify(generatedQuestions, null, 2)], { type: 'application/json' });
+             fileExtension = 'json';
+        } else { // txt
+            let content = `الأسئلة التي تم إنشاؤها من: ${fileName || 'نص مخصص'}\n\n`;
+            content += "========================================\n\n";
+            generatedQuestions.forEach((q, index) => {
+                content += `سؤال ${index + 1}: ${q.question}\n`;
+                if (isInteractive && q.options && q.options.length > 0) {
+                    const choices = ['أ', 'ب', 'ج', 'د'];
+                    content += "الخيارات:\n";
+                    q.options.forEach((opt, i) => content += `${choices[i]}- ${opt}\n`);
+                }
+                content += `الإجابة الصحيحة: ${q.correctAnswer}\n`;
+                content += `الشرح: ${q.explanation}\n\n`;
+                content += "----------------------------------------\n\n";
+            });
+            blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+            fileExtension = 'txt';
+        }
+        
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        const downloadFileName = (fileName ? fileName.split('.').slice(0, -1).join('.') : 'أسئلة') + '.txt';
-        link.download = downloadFileName;
+        link.download = `${downloadFileName}.${fileExtension}`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -256,7 +277,6 @@ export function QuestionGenerator() {
             return;
         }
         if (generatedQuestions.length === 0) {
-            // Don't toast here, as it can be annoying on blur
             return;
         }
         if (!currentFileName.trim()) {
@@ -274,6 +294,7 @@ export function QuestionGenerator() {
             isInteractive,
             uploadDate: new Date().toISOString(),
             userId: user.uid,
+            userAnswers: userAnswers,
         };
         try {
             await setDoc(docRef, dataToSave, { merge: true });
@@ -287,17 +308,17 @@ export function QuestionGenerator() {
         } finally {
             setIsSaving(false);
         }
-    }, [user, firestore, generatedQuestions, isInteractive, selectedSessionId, toast]);
+    }, [user, firestore, generatedQuestions, isInteractive, selectedSessionId, userAnswers, toast]);
     
     const handleViewSession = (session: SavedSession) => {
         setGeneratedQuestions(session.questions);
         setFileName(session.fileName);
         setIsInteractive(session.isInteractive);
         setSelectedSessionId(session.id);
-        setUserAnswers([]);
-        clearInputs(); // Clear file/text inputs but keep the session name
-        setSourceFile(null);
-        setSourceText('');
+        setUserAnswers(session.userAnswers || []);
+        setQuizState('not-started');
+        setCurrentQuestionIndex(0);
+        clearInputs();
         toast({ title: `جاري عرض: ${session.fileName}` });
     };
 
@@ -321,175 +342,245 @@ export function QuestionGenerator() {
         setUserAnswers([]);
         setFileName('');
         setSelectedSessionId(null);
+        setQuizState('not-started');
+        setCurrentQuestionIndex(0);
         clearInputs();
         toast({ title: 'جلسة جديدة جاهزة للبدء' });
     };
 
+    const handleNextQuestion = () => {
+        if (currentQuestionIndex < generatedQuestions.length - 1) {
+            setCurrentQuestionIndex(prev => prev + 1);
+        } else {
+            setQuizState('finished');
+            handleSaveSession(fileName); // Auto-save on quiz completion
+        }
+    };
+
+    const retryIncorrect = () => {
+        const incorrectQuestions = userAnswers.filter(a => !a.isCorrect).map(a => generatedQuestions[a.questionIndex]);
+        setGeneratedQuestions(incorrectQuestions);
+        setUserAnswers([]);
+        setCurrentQuestionIndex(0);
+        setQuizState('in-progress');
+        setFileName(prev => `${prev} (مراجعة الأخطاء)`);
+        setSelectedSessionId(null); // This is a new session based on the old one
+    };
+
     const isGenerateButtonDisabled = isGenerating || (inputMode === 'file' && !sourceFile) || (inputMode === 'text' && !sourceText.trim());
+
+    const correctCount = userAnswers.filter(a => a.isCorrect).length;
+    const incorrectCount = userAnswers.length - correctCount;
+
+    const renderMainContent = () => {
+        if (generatedQuestions.length === 0) {
+            return (
+                 <CardContent className="space-y-6">
+                    <Tabs value={inputMode} onValueChange={(value) => setInputMode(value as InputMode)} className="w-full" dir="rtl">
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="file"><FileUp className="ml-2" /> رفع ملف</TabsTrigger>
+                            <TabsTrigger value="text"><Type className="ml-2" /> إدخال نص</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="file" className="mt-4 relative">
+                            <div 
+                                className="flex justify-center items-center w-full px-6 py-10 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary hover:bg-secondary transition-colors"
+                                onClick={() => fileInputRef.current?.click()}
+                            >
+                                <div className="text-center">
+                                    <FileUp className="mx-auto h-12 w-12 text-muted-foreground"/>
+                                    <p className="mt-2 text-sm text-foreground">
+                                        {sourceFile && fileName ? <span className="font-semibold text-primary">{fileName}</span> : <>
+                                            <span className="font-semibold text-primary">انقر للاختيار</span> أو اسحب وأفلت صورة أو PDF
+                                        </>}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">PDF, PNG, JPG, GIF</p>
+                                </div>
+                            </div>
+                            <Input id="file-upload-qg" ref={fileInputRef} type="file" accept="image/*,.pdf" className="hidden" onChange={handleFileChange}/>
+                            {sourceFile && <Button variant="ghost" size="icon" className="absolute top-2 left-2" onClick={clearInputs}><RotateCcw className="w-5 h-5 text-muted-foreground" /></Button>}
+                        </TabsContent>
+                        <TabsContent value="text" className="mt-4 relative">
+                            <Textarea placeholder="اكتب أو الصق النص هنا..." className="min-h-[150px] bg-secondary text-right" dir="rtl" value={sourceText} onChange={(e) => setSourceText(e.target.value)} />
+                            {sourceText && <Button variant="ghost" size="icon" className="absolute top-2 left-2" onClick={clearInputs}><RotateCcw className="w-5 h-5 text-muted-foreground" /></Button>}
+                        </TabsContent>
+                    </Tabs>
+                    
+                    <Card className="p-4 bg-secondary">
+                         <CardHeader className="p-2 pt-0"><CardTitle className="text-lg">إعدادات التوليد</CardTitle></CardHeader>
+                        <CardContent className="p-2">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <Label htmlFor="num-questions" className="font-semibold text-foreground">عدد الأسئلة</Label>
+                                        <div className="flex items-center gap-2">
+                                            <Button variant="outline" size="icon" className="h-8 w-8 bg-card" onClick={() => setNumQuestions(n => Math.max(1, n - 1))}><Minus className="h-4 w-4" /></Button>
+                                            <Input id="num-questions" type="number" value={numQuestions} onChange={e => setNumQuestions(Math.max(1, Math.min(MAX_QUESTIONS, parseInt(e.target.value) || 1)))} className="w-16 text-center bg-card" />
+                                            <Button variant="outline" size="icon" className="h-8 w-8 bg-card" onClick={() => setNumQuestions(n => Math.min(MAX_QUESTIONS, n + 1))}><Plus className="h-4 w-4" /></Button>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <Label htmlFor="interactive-switch" className="font-semibold text-foreground">أسئلة تفاعلية</Label>
+                                        <Switch id="interactive-switch" checked={isInteractive} onCheckedChange={(checked) => { setIsInteractive(checked); if (!checked) setQuizState('not-started'); }} />
+                                    </div>
+                                </div>
+                                <div className="space-y-3 mt-4">
+                                    <Label className="font-semibold text-foreground">مستوى الصعوبة</Label>
+                                    <RadioGroup value={difficulty} onValueChange={(value: Difficulty) => setDifficulty(value)} className="grid grid-cols-3 gap-2" dir="rtl">
+                                        {(['easy', 'medium', 'hard'] as Difficulty[]).map((level) => {
+                                            const translations = { easy: 'سهل', medium: 'متوسط', hard: 'صعب' };
+                                            return (
+                                                <div key={level}>
+                                                    <RadioGroupItem value={level} id={level} className="sr-only" />
+                                                    <Label htmlFor={level} className={cn("flex flex-col items-center justify-between rounded-md border-2 border-muted bg-card p-2 text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer", difficulty === level && "border-primary")}>
+                                                        {translations[level]}
+                                                    </Label>
+                                                </div>
+                                            );
+                                        })}
+                                    </RadioGroup>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Button onClick={handleGenerateQuestions} disabled={isGenerateButtonDisabled} className="w-full text-lg py-6">
+                        {isGenerating ? <><Loader2 className="ml-2 h-5 w-5 animate-spin" /> جاري توليد الأسئلة...</> : <><Wand2 className="ml-2 h-5 w-5" /> توليد الأسئلة</>}
+                    </Button>
+                </CardContent>
+            );
+        }
+
+        if (quizState === 'in-progress') return <QuizView />;
+        if (quizState === 'finished') return <ResultsView />;
+
+        return (
+            <CardContent className="text-center">
+                 <h3 className="text-xl font-bold mb-4">تم إنشاء {generatedQuestions.length} سؤال</h3>
+                 <p className="text-muted-foreground mb-6">هل أنت مستعد لبدء الاختبار؟</p>
+                 <Button onClick={() => setQuizState('in-progress')} size="lg">ابدأ الاختبار</Button>
+            </CardContent>
+        );
+    }
+    
+    const QuizView = () => {
+        const question = generatedQuestions[currentQuestionIndex];
+        const userAnswer = userAnswers.find(a => a.questionIndex === currentQuestionIndex);
+        const progress = ((currentQuestionIndex + 1) / generatedQuestions.length) * 100;
+
+        return (
+            <CardContent className="space-y-6">
+                 <div className="space-y-3">
+                    <div className="flex justify-between items-center text-sm text-muted-foreground">
+                       <span>السؤال: {currentQuestionIndex + 1} / {generatedQuestions.length}</span>
+                       <div className="flex gap-4">
+                           <span className="flex items-center gap-1 text-green-500"><Check className="w-4 h-4"/> {correctCount}</span>
+                           <span className="flex items-center gap-1 text-red-500"><XCircle className="w-4 h-4"/> {incorrectCount}</span>
+                       </div>
+                    </div>
+                    <Progress value={progress} />
+                 </div>
+
+                <Card className="bg-secondary p-6" dir="rtl">
+                    <p className="font-bold text-lg">{question.question}</p>
+                    <RadioGroup
+                        className="space-y-3 mt-4"
+                        onValueChange={(value) => handleAnswerSelect(currentQuestionIndex, value)}
+                        value={userAnswer?.selectedOption}
+                        disabled={!!userAnswer}
+                    >
+                        {question.options.map((opt, i) => {
+                            const isSelected = userAnswer?.selectedOption === opt;
+                            const isCorrectAnswer = question.correctAnswer === opt;
+                            return (
+                                <div key={i} className={cn("flex items-center space-x-2 p-3 rounded-md border-2 transition-all",
+                                    "space-x-reverse",
+                                    !userAnswer ? "border-muted hover:border-primary cursor-pointer" :
+                                    isSelected && !isCorrectAnswer ? "bg-red-900/50 border-red-500" :
+                                    isCorrectAnswer ? "bg-green-900/50 border-green-500" : "border-muted"
+                                )}>
+                                    <RadioGroupItem value={opt} id={`q${currentQuestionIndex}-opt${i}`} />
+                                    <Label htmlFor={`q${currentQuestionIndex}-opt${i}`} className="flex-1 cursor-pointer text-base">
+                                        {opt}
+                                    </Label>
+                                    {userAnswer && isSelected && !isCorrectAnswer && <XCircle className="w-6 h-6 text-red-400" />}
+                                    {userAnswer && isCorrectAnswer && <Check className="w-6 h-6 text-green-400" />}
+                                </div>
+                            );
+                        })}
+                    </RadioGroup>
+
+                    {userAnswer && (
+                        <div className="mt-4 p-4 bg-card rounded-md border border-border animate-in fade-in-50">
+                            <p className="font-bold flex items-center gap-2"><Lightbulb className="w-5 h-5 text-primary" /> الشرح:</p>
+                            <p className="text-muted-foreground mt-1">{question.explanation}</p>
+                        </div>
+                    )}
+                </Card>
+
+                {userAnswer && (
+                     <Button onClick={handleNextQuestion} className="w-full text-lg py-6">
+                        {currentQuestionIndex < generatedQuestions.length - 1 ? 'السؤال التالي' : 'إنهاء الاختبار'}
+                    </Button>
+                )}
+            </CardContent>
+        );
+    };
+
+    const ResultsView = () => {
+        const score = Math.round((correctCount / generatedQuestions.length) * 100);
+        return (
+            <CardContent className="text-center space-y-6">
+                <h3 className="text-2xl font-bold text-primary">اكتمل الاختبار!</h3>
+                <p className="text-4xl font-bold">{score}%</p>
+                <div className="w-full bg-secondary rounded-full h-4">
+                    <div className="bg-primary h-4 rounded-full" style={{ width: `${score}%` }}></div>
+                </div>
+                 <div className="flex justify-center gap-4 text-lg">
+                    <span className="flex items-center gap-2"><Check className="w-5 h-5 text-green-500"/>صحيح: <span className="font-bold">{correctCount}</span></span>
+                    <span className="flex items-center gap-2"><XCircle className="w-5 h-5 text-red-500"/>خطأ: <span className="font-bold">{incorrectCount}</span></span>
+                 </div>
+
+                 <div className="flex flex-wrap justify-center gap-4">
+                     <Button onClick={resetSession} variant="outline"><RotateCcw className="ml-2 h-4 w-4"/> إعادة الاختبار</Button>
+                     {incorrectCount > 0 && <Button onClick={retryIncorrect}><Wand2 className="ml-2 h-4 w-4"/> مراجعة الأخطاء فقط</Button>}
+                     <Button onClick={() => setQuizState('not-started')} variant="secondary">العودة للبداية</Button>
+                 </div>
+                 
+                 <div className='w-full pt-6 border-t border-border'>
+                    <h4 className="text-xl font-bold mb-4 text-right">ملخص الإجابات</h4>
+                     <ScrollArea className="h-96 text-right">
+                        <div className="space-y-4 pr-2">
+                             {generatedQuestions.map((q, index) => {
+                                const answer = userAnswers.find(a => a.questionIndex === index);
+                                return (
+                                <Card key={index} className={cn("p-4 text-sm", answer?.isCorrect ? "border-green-500/30" : "border-red-500/30")}>
+                                     <p className="font-bold">{index + 1}. {q.question}</p>
+                                     <p className="mt-2 text-muted-foreground">إجابتك: <span className={cn(answer?.isCorrect ? "text-green-400" : "text-red-400")}>{answer?.selectedOption || "لم تتم الإجابة"}</span></p>
+                                     {!answer?.isCorrect && <p className="text-green-400">الإجابة الصحيحة: {q.correctAnswer}</p>}
+                                </Card>
+                                )
+                            })}
+                        </div>
+                     </ScrollArea>
+                 </div>
+
+            </CardContent>
+        );
+    };
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
-                <Card className="w-full shadow-lg bg-card border-none">
+                <Card className="w-full shadow-lg bg-card border-none min-h-[500px]">
                     <CardHeader>
                         <div className="flex justify-between items-center">
-                            <CardTitle className="text-xl font-bold text-primary">توليد الأسئلة من المحتوى</CardTitle>
-                             {(!selectedSessionId && generatedQuestions.length === 0) ? null : (
+                            <CardTitle className="text-xl font-bold text-primary">توليد الأسئلة</CardTitle>
+                             { (generatedQuestions.length > 0) && (
                                 <Button variant="outline" onClick={handleNewSession}><PlusCircle className="ml-2 h-4 w-4"/> جلسة جديدة</Button>
                              )}
                         </div>
                     </CardHeader>
-                    <CardContent className="space-y-6">
-                        <Tabs value={inputMode} onValueChange={(value) => setInputMode(value as InputMode)} className="w-full" dir="rtl">
-                            <TabsList className="grid w-full grid-cols-2">
-                                <TabsTrigger value="file"><FileUp className="ml-2" /> رفع ملف</TabsTrigger>
-                                <TabsTrigger value="text"><Type className="ml-2" /> إدخال نص</TabsTrigger>
-                            </TabsList>
-                            <TabsContent value="file" className="mt-4 relative">
-                                <div 
-                                    className="flex justify-center items-center w-full px-6 py-10 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary hover:bg-secondary transition-colors"
-                                    onClick={() => fileInputRef.current?.click()}
-                                >
-                                    <div className="text-center">
-                                        <FileUp className="mx-auto h-12 w-12 text-muted-foreground"/>
-                                        <p className="mt-2 text-sm text-foreground">
-                                            {sourceFile && fileName ? <span className="font-semibold text-primary">{fileName}</span> : <>
-                                                <span className="font-semibold text-primary">انقر للاختيار</span> أو اسحب وأفلت صورة أو PDF
-                                            </>}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">PDF, PNG, JPG, GIF</p>
-                                    </div>
-                                </div>
-                                <Input
-                                    id="file-upload-qg"
-                                    ref={fileInputRef}
-                                    type="file"
-                                    accept="image/*,.pdf"
-                                    className="hidden"
-                                    onChange={handleFileChange}
-                                />
-                                {sourceFile && (
-                                    <Button variant="ghost" size="icon" className="absolute top-2 left-2" onClick={clearInputs}>
-                                        <RotateCcw className="w-5 h-5 text-muted-foreground" />
-                                    </Button>
-                                )}
-                            </TabsContent>
-                            <TabsContent value="text" className="mt-4 relative">
-                                <Textarea
-                                    placeholder="اكتب أو الصق النص هنا..."
-                                    className="min-h-[150px] bg-secondary text-right"
-                                    dir="rtl"
-                                    value={sourceText}
-                                    onChange={(e) => setSourceText(e.target.value)}
-                                />
-                                {sourceText && (
-                                    <Button variant="ghost" size="icon" className="absolute top-2 left-2" onClick={clearInputs}>
-                                        <RotateCcw className="w-5 h-5 text-muted-foreground" />
-                                    </Button>
-                                )}
-                            </TabsContent>
-                        </Tabs>
-                        
-                        <Card className="p-4 bg-secondary">
-                             <CardHeader className="p-2 pt-0">
-                                <CardTitle className="text-lg">إعدادات التوليد</CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-2">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-4">
-                                        <div className="flex items-center justify-between">
-                                            <Label htmlFor="num-questions" className="font-semibold text-foreground">عدد الأسئلة</Label>
-                                            <div className="flex items-center gap-2">
-                                                <Button variant="outline" size="icon" className="h-8 w-8 bg-card" onClick={() => setNumQuestions(n => Math.max(1, n - 1))}><Minus className="h-4 w-4" /></Button>
-                                                <Input id="num-questions" type="number" value={numQuestions} onChange={e => setNumQuestions(Math.max(1, Math.min(MAX_QUESTIONS, parseInt(e.target.value) || 1)))} className="w-16 text-center bg-card" />
-                                                <Button variant="outline" size="icon" className="h-8 w-8 bg-card" onClick={() => setNumQuestions(n => Math.min(MAX_QUESTIONS, n + 1))}><Plus className="h-4 w-4" /></Button>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center justify-between">
-                                            <Label htmlFor="interactive-switch" className="font-semibold text-foreground">أسئلة تفاعلية</Label>
-                                            <Switch id="interactive-switch" checked={isInteractive} onCheckedChange={setIsInteractive} />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-3">
-                                        <Label className="font-semibold text-foreground">مستوى الصعوبة</Label>
-                                        <RadioGroup value={difficulty} onValueChange={(value: Difficulty) => setDifficulty(value)} className="grid grid-cols-3 gap-2" dir="rtl">
-                                            {(['easy', 'medium', 'hard'] as Difficulty[]).map((level) => {
-                                                const translations = { easy: 'سهل', medium: 'متوسط', hard: 'صعب' };
-                                                return (
-                                                    <div key={level}>
-                                                        <RadioGroupItem value={level} id={level} className="sr-only" />
-                                                        <Label htmlFor={level} className={cn("flex flex-col items-center justify-between rounded-md border-2 border-muted bg-card p-2 text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer", difficulty === level && "border-primary")}>
-                                                            {translations[level]}
-                                                        </Label>
-                                                    </div>
-                                                );
-                                            })}
-                                        </RadioGroup>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Button onClick={handleGenerateQuestions} disabled={isGenerateButtonDisabled} className="w-full text-lg py-6">
-                            {isGenerating ? <><Loader2 className="ml-2 h-5 w-5 animate-spin" /> جاري توليد الأسئلة...</> : <><Wand2 className="ml-2 h-5 w-5" /> توليد الأسئلة</>}
-                        </Button>
-                    </CardContent>
-                    
-                    {generatedQuestions.length > 0 && (
-                        <CardFooter className="flex flex-col items-start gap-4">
-                            <div className="w-full">
-                                <h3 className="text-lg font-medium text-right w-full border-t border-border pt-4 text-primary">الأسئلة التي تم إنشاؤها</h3>
-                                {renderResults()}
-                                <div className="w-full space-y-4 mt-4">
-                                    {generatedQuestions.map((q, index) => {
-                                        const userAnswer = userAnswers.find(a => a.questionIndex === index);
-                                        const choices = ['أ', 'ب', 'ج', 'د'];
-                                        const isRtl = /[\u0600-\u06FF]/.test(q.question);
-                                        return (
-                                        <Card key={index} className="bg-secondary p-4" dir={isRtl ? 'rtl' : 'ltr'}>
-                                            <p className="font-bold">{`${index + 1}. ${q.question}`}</p>
-                                            {isInteractive && q.options && q.options.length > 0 ? (
-                                                <RadioGroup
-                                                    className="space-y-2 mt-2"
-                                                    onValueChange={(value) => handleAnswerSelect(index, value)}
-                                                    value={userAnswer?.selectedOption}
-                                                    disabled={!!userAnswer}
-                                                >
-                                                    {q.options.map((opt, i) => {
-                                                        const isSelected = userAnswer?.selectedOption === opt;
-                                                        const isCorrectAnswer = q.correctAnswer === opt;
-                                                        return (
-                                                            <div key={i} className={cn("flex items-center space-x-2 p-2 rounded-md border",
-                                                                isRtl ? "space-x-reverse" : "",
-                                                                !userAnswer ? "border-transparent hover:bg-card/70" :
-                                                                isSelected && !isCorrectAnswer ? "bg-red-500/20 border-red-500" :
-                                                                isCorrectAnswer ? "bg-green-500/20 border-green-500" : "border-transparent"
-                                                            )}>
-                                                                <RadioGroupItem value={opt} id={`q${index}-opt${i}`} />
-                                                                <Label htmlFor={`q${index}-opt${i}`} className="flex-1 cursor-pointer">
-                                                                    <span className="font-bold">{isRtl ? choices[i] : String.fromCharCode(65 + i)}-</span> {opt}
-                                                                </Label>
-                                                                {userAnswer && isSelected && !isCorrectAnswer && <XCircle className="w-5 h-5 text-red-500" />}
-                                                                {userAnswer && isCorrectAnswer && <Check className="w-5 h-5 text-green-500" />}
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </RadioGroup>
-                                            ) : (
-                                                <div className="mt-2 text-green-400 font-semibold bg-green-500/10 p-2 rounded-md">{q.correctAnswer}</div>
-                                            )}
-                                            {userAnswer && (
-                                                <div className="mt-3 p-3 bg-card rounded-md border border-border">
-                                                    <p className="font-bold flex items-center gap-2"><Lightbulb className="w-5 h-5 text-primary" /> {isRtl ? 'الشرح:' : 'Explanation:'}</p>
-                                                    <p className="text-muted-foreground">{q.explanation}</p>
-                                                </div>
-                                            )}
-                                        </Card>
-                                    )})}
-                                </div>
-                            </div>
-                        </CardFooter>
-                    )}
+                    {renderMainContent()}
                 </Card>
             </div>
 
@@ -497,7 +588,7 @@ export function QuestionGenerator() {
                 <div className="lg:col-span-1">
                      <Card className="w-full shadow-lg bg-card border-none sticky top-6">
                         <CardHeader>
-                            <CardTitle className="text-xl font-bold text-primary">الجلسات المحفوظة</CardTitle>
+                            <CardTitle className="text-xl font-bold text-primary">إدارة الجلسات</CardTitle>
                         </CardHeader>
                          <CardContent className="space-y-4">
                              <div className="space-y-2">
@@ -507,19 +598,19 @@ export function QuestionGenerator() {
                                     value={fileName}
                                     onChange={(e) => setFileName(e.target.value)}
                                     onBlur={(e) => handleSaveSession(e.target.value)}
-                                    placeholder="أدخل اسمًا للحفظ..."
+                                    placeholder="أدخل اسمًا للحفظ التلقائي..."
                                     className="text-right bg-secondary focus-visible:ring-primary w-full"
                                     disabled={isSaving}
                                 />
                              </div>
                              <div className="grid grid-cols-2 gap-2">
-                                <Button variant="outline" onClick={handleDownload} disabled={!generatedQuestions.length}>
-                                    <Download className="ml-2"/>
-                                    تنزيل
+                                <Button variant="outline" onClick={() => handleDownload('txt')} disabled={!generatedQuestions.length}>
+                                    <FileText className="ml-2"/>
+                                    TXT
                                 </Button>
-                                <Button variant="destructive" onClick={clearInputs}>
-                                    <Trash2 className="ml-2"/>
-                                    مسح المدخلات
+                                 <Button variant="outline" onClick={() => handleDownload('pdf')} disabled={!generatedQuestions.length}>
+                                    <FileType className="ml-2"/>
+                                    PDF
                                 </Button>
                              </div>
                              
@@ -533,10 +624,7 @@ export function QuestionGenerator() {
                                             <span className="text-xs text-muted-foreground">{new Date(session.uploadDate).toLocaleString()}</span>
                                         </div>
                                         <div className="flex gap-2">
-                                            <Button variant="ghost" size="icon" onClick={() => handleViewSession(session)}>
-                                                <View className="h-4 w-4"/>
-                                            </Button>
-                                            <Button variant="destructive" size="icon" onClick={() => handleDeleteSession(session.id)}>
+                                            <Button variant="ghost" size="icon" onClick={() => handleDeleteSession(session.id)}>
                                                 <Trash2 className="h-4 w-4" />
                                                 <span className="sr-only">حذف</span>
                                             </Button>
@@ -555,5 +643,3 @@ export function QuestionGenerator() {
         </div>
     );
 }
-
-    

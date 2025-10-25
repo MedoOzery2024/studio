@@ -93,7 +93,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "QuestionSession",
       "type": "object",
-      "description": "Represents a saved session of generated questions.",
+      "description": "Represents a saved session of generated questions, including user answers.",
       "properties": {
         "id": {
           "type": "string",
@@ -129,6 +129,19 @@
         "userId": {
             "type": "string",
             "description": "The user who created the session."
+        },
+        "userAnswers": {
+          "type": "array",
+          "description": "An array of the user's answers for this session.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "questionIndex": {"type": "number"},
+              "selectedOption": {"type": "string"},
+              "isCorrect": {"type": "boolean"}
+            },
+            "required": ["questionIndex", "selectedOption", "isCorrect"]
+          }
         }
       },
       "required": ["id", "fileName", "questions", "isInteractive", "uploadDate", "userId"]

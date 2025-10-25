@@ -359,6 +359,9 @@ export function SpeechToTextConverter() {
                                     </div>
                                 </li>
                                 ))}
+                                 {savedFiles && savedFiles.length === 0 && !isLoadingFiles && (
+                                    <li className="text-center text-muted-foreground p-4">لا توجد ملفات محفوظة.</li>
+                                )}
                             </ul>
                          </ScrollArea>
                     </div>

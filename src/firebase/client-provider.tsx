@@ -14,9 +14,15 @@ function AuthHandler({ auth }: { auth: Auth | null }) {
   useEffect(() => {
     if (!auth) return;
 
+    // Initially, if there's no user, sign in anonymously.
+    if (!auth.currentUser) {
+      initiateAnonymousSignIn(auth);
+    }
+    
+    // Then, listen for any future auth state changes.
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (!user) {
-        // If there's no user, sign them in anonymously.
+        // If the user signs out, sign them back in anonymously.
         initiateAnonymousSignIn(auth);
       }
     });

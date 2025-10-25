@@ -14,8 +14,9 @@ import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from '../ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { useUser, useFirestore, useMemoFirebase, useCollection, setDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
 import { collection, doc, deleteDoc } from 'firebase/firestore';
+import { setDocumentNonBlocking } from '@/firebase';
 import { ScrollArea } from '../ui/scroll-area';
 
 const MAX_QUESTIONS = 100;
@@ -432,7 +433,7 @@ export function QuestionGenerator() {
                 </Button>
             </CardContent>
             
-            {(generatedQuestions.length > 0 || user) && (
+            {(generatedQuestions.length > 0 || (user && savedSessions && savedSessions.length > 0)) && (
                 <CardFooter className="flex flex-col items-start gap-4">
                     {generatedQuestions.length > 0 && (
                         <div className="w-full">
@@ -549,6 +550,9 @@ export function QuestionGenerator() {
                                     </div>
                                 </li>
                                 ))}
+                                {savedSessions && savedSessions.length === 0 && !isLoadingFiles && (
+                                    <li className="text-center text-muted-foreground p-4">لا توجد جلسات محفوظة.</li>
+                                )}
                             </ul>
                          </ScrollArea>
                     </div>

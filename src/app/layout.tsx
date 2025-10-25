@@ -23,6 +23,7 @@ export default function RootLayout({
       <body className="font-body antialiased">
         <FirebaseClientProvider>
           {children}
+          <FirebaseErrorListener />
         </FirebaseClientProvider>
       </body>
     </html>

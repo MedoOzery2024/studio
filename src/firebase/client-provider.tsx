@@ -5,13 +5,12 @@ import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth, onAuthStateChanged, User, signInAnonymously } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 import { firebaseConfig } from '@/firebase/config';
-import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
 // --- Interfaces ---
 interface FirebaseContextValue {
-  firebaseApp: FirebaseApp | null;
-  auth: Auth | null;
-  firestore: Firestore | null;
+  firebaseApp: FirebaseApp;
+  auth: Auth;
+  firestore: Firestore;
   user: User | null;
   isUserLoading: boolean;
   userError: Error | null;
@@ -21,30 +20,24 @@ interface FirebaseContextValue {
 const FirebaseContext = createContext<FirebaseContextValue | undefined>(undefined);
 
 // --- Auth Subscription Hook ---
-function useAuthSubscription(auth: Auth | null): { user: User | null; isUserLoading: boolean; userError: Error | null } {
-  const [user, setUser] = useState<User | null>(auth?.currentUser || null);
+function useAuthSubscription(auth: Auth): { user: User | null; isUserLoading: boolean; userError: Error | null } {
+  const [user, setUser] = useState<User | null>(auth.currentUser);
   const [isUserLoading, setIsUserLoading] = useState(true);
   const [userError, setUserError] = useState<Error | null>(null);
 
   useEffect(() => {
-    if (!auth) {
-      setIsUserLoading(false);
-      return;
-    }
-
     const unsubscribe = onAuthStateChanged(
       auth,
       (newUser) => {
-        if (newUser) {
-          setUser(newUser);
-        } else {
-          // If user logs out or session expires, sign in anonymously again.
+        setUser(newUser);
+        setIsUserLoading(false);
+        // If the user logs out or the session expires, sign in anonymously again.
+        if (!newUser) {
           signInAnonymously(auth).catch((error) => {
             console.error("Anonymous re-sign-in failed:", error);
             setUserError(error);
           });
         }
-        setIsUserLoading(false);
       },
       (error) => {
         console.error("Auth state change error:", error);
@@ -52,13 +45,13 @@ function useAuthSubscription(auth: Auth | null): { user: User | null; isUserLoad
         setIsUserLoading(false);
       }
     );
-
-    // Initial anonymous sign-in if there's no user.
+    
+    // Ensure initial sign-in if no user is present on mount
     if (!auth.currentUser) {
-      signInAnonymously(auth).catch((error) => {
-        console.error("Initial anonymous sign-in failed:", error);
-        setUserError(error);
-      });
+        signInAnonymously(auth).catch((error) => {
+            console.error("Initial anonymous sign-in failed:", error);
+            setUserError(error);
+        });
     }
 
 
@@ -89,7 +82,6 @@ function FirebaseProvider({ children }: { children: ReactNode }) {
 
   return (
     <FirebaseContext.Provider value={contextValue}>
-      <FirebaseErrorListener />
       {children}
     </FirebaseContext.Provider>
   );
@@ -112,15 +104,16 @@ function useFirebaseContext() {
     return context;
 }
 
-export const useAuth = (): Auth | null => useFirebaseContext().auth;
-export const useFirestore = (): Firestore | null => useFirebaseContext().firestore;
-export const useFirebaseApp = (): FirebaseApp | null => useFirebaseContext().firebaseApp;
+export const useAuth = (): Auth => useFirebaseContext().auth;
+export const useFirestore = (): Firestore => useFirebaseContext().firestore;
+export const useFirebaseApp = (): FirebaseApp => useFirebaseContext().firebaseApp;
 export const useUser = (): { user: User | null, isUserLoading: boolean, userError: Error | null } => {
     const { user, isUserLoading, userError } = useFirebaseContext();
     return { user, isUserLoading, userError };
 };
 
 export function useMemoFirebase<T>(factory: () => T, deps: React.DependencyList): T {
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const memoized = useMemo(factory, deps);
   
   if (typeof memoized === 'object' && memoized !== null) {

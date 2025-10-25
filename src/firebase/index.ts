@@ -10,4 +10,4 @@ export * from './errors';
 export * from './error-emitter';
 
 // Export core Firestore functions for convenience.
-export { collection, doc, deleteDoc } from 'firebase/firestore';
+export { collection, doc, deleteDoc, setDoc } from 'firebase/firestore';

@@ -33,6 +33,7 @@ interface SavedSession {
     questions: Question[];
     isInteractive: boolean;
     uploadDate: string;
+    userId: string;
 }
 
 export function QuestionGenerator() {
@@ -260,12 +261,12 @@ export function QuestionGenerator() {
         try {
             const sessionId = selectedSessionId || doc(collection(firestore, `users/${user.uid}/questionSessions`)).id;
             const docRef = doc(firestore, `users/${user.uid}/questionSessions`, sessionId);
-            const dataToSave: Omit<SavedSession, 'id'> & { id: string; uploadDate: string } = {
-                id: sessionId,
+            const dataToSave: Omit<SavedSession, 'id'> = {
                 fileName: finalFileName,
                 questions: generatedQuestions,
                 isInteractive,
                 uploadDate: new Date().toISOString(),
+                userId: user.uid,
             };
             setDocumentNonBlocking(docRef, dataToSave, { merge: true });
             toast({ title: "تم الحفظ بنجاح!", description: `تم حفظ "${finalFileName}".` });

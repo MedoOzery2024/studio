@@ -125,9 +125,13 @@
           "type": "string",
           "description": "The date and time when the session was saved.",
           "format": "date-time"
+        },
+        "userId": {
+            "type": "string",
+            "description": "The user who created the session."
         }
       },
-      "required": ["id", "fileName", "questions", "isInteractive", "uploadDate"]
+      "required": ["id", "fileName", "questions", "isInteractive", "uploadDate", "userId"]
     }
   },
   "auth": {

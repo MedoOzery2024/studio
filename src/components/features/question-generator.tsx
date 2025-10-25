@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, FileUp, Wand2, Download, Trash2, Check, XCircle, Lightbulb, Type, RotateCcw, Minus, Plus, Save, FileText, View } from 'lucide-react';
@@ -19,7 +19,7 @@ import { collection, doc, deleteDoc } from 'firebase/firestore';
 import { setDocumentNonBlocking } from '@/firebase';
 import { ScrollArea } from '../ui/scroll-area';
 
-const MAX_QUESTIONS = 100;
+const MAX_QUESTIONS = 1000;
 type Difficulty = 'easy' | 'medium' | 'hard';
 type InputMode = 'file' | 'text';
 type Language = 'ar' | 'en';
@@ -125,6 +125,7 @@ export function QuestionGenerator() {
 
             let result: GenerateQuestionsOutput;
             try {
+                // More robust JSON parsing
                 const jsonMatch = rawResult.match(/```json\s*([\s\S]*?)\s*```|(\[[\s\S]*\]|\{[\s\S]*\})/);
                 if (!jsonMatch) throw new Error("Response did not contain a valid JSON object or array.");
                 const jsonString = jsonMatch[1] || jsonMatch[2];
@@ -385,16 +386,8 @@ export function QuestionGenerator() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-4">
                              <div className="flex items-center justify-between">
-                                <Label htmlFor="language-select" className="font-semibold text-foreground">لغة الأسئلة</Label>
-                                <Select value={language} onValueChange={(value: Language) => setLanguage(value)}>
-                                    <SelectTrigger id="language-select" className="w-[180px] bg-card">
-                                        <SelectValue placeholder="اختر اللغة" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="ar">العربية</SelectItem>
-                                        <SelectItem value="en">English</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                <Label htmlFor="language-info" className="font-semibold text-foreground">لغة الأسئلة</Label>
+                                <p id="language-info" className='text-sm text-muted-foreground'>تلقائي (حسب لغة المحتوى)</p>
                              </div>
                             <div className="flex items-center justify-between">
                                 <Label htmlFor="num-questions" className="font-semibold text-foreground">عدد الأسئلة</Label>

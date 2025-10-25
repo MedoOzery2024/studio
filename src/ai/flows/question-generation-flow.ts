@@ -23,8 +23,8 @@ const GenerateQuestionsInputSchema = z.object({
   text: z.string().optional().describe('The source text from which to generate questions.'),
   image: z.string().optional().describe("An optional image/PDF file (as a data URI) to analyze for question generation."),
   fileName: z.string().optional().describe("The name of the file being processed."),
-  language: z.string().describe('The language of the source text (e.g., "ar", "en").'),
-  numQuestions: z.number().min(1).max(100).describe('The number of questions to generate.'),
+  language: z.string().describe('The language of the source text (e.g., "ar", "en", "fr"). The AI will attempt to match this language.'),
+  numQuestions: z.number().min(1).max(1000).describe('The number of questions to generate.'),
   interactive: z.boolean().describe('Whether to generate interactive (multiple-choice) questions or not.'),
   difficulty: z.enum(['easy', 'medium', 'hard']).describe('The difficulty level of the questions.'),
 });
@@ -65,7 +65,7 @@ const generateQuestionsFlow = ai.defineFlow(
     
     // Construct the text prompt
     const fullPromptText = `You are an expert in creating educational content. Your task is to generate a list of questions based on the provided context (text or file).
-The questions should be in the same language as the source text, which is '${language}'.
+The questions should be in the same language as the source text. The user has indicated the language is '${language}', but you should primarily rely on the language of the provided context.
 The questions should be of '${difficulty}' difficulty.
 
 Generate exactly ${numQuestions} questions.
@@ -77,7 +77,7 @@ For every question, you MUST provide:
 1.  A clear question ('question').
 2.  An array of 4 options if interactive, or an empty array if not ('options').
 3.  The single correct answer ('correctAnswer').
-4.  A brief explanation of why the answer is correct ('explanation').
+4.  A detailed explanation of why the answer is correct ('explanation').
 
 CRITICAL: The output MUST be a valid JSON object string that adheres to the defined schema. Do not add any text before or after the JSON object. Do not use markdown backticks like \`\`\`json. Your entire response should be only the JSON object.
 

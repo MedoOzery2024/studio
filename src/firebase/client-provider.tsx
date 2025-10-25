@@ -1,45 +1,45 @@
 'use client';
 
 import React, { useMemo, type ReactNode, useEffect } from 'react';
-import { FirebaseProvider, useFirebase } from '@/firebase/provider';
+import { FirebaseProvider } from '@/firebase/provider';
 import { initializeFirebase } from '@/firebase';
 import { initiateAnonymousSignIn } from './non-blocking-login';
-import { Auth, onAuthStateChanged, User } from 'firebase/auth';
+import { Auth, onAuthStateChanged } from 'firebase/auth';
 
 interface FirebaseClientProviderProps {
   children: ReactNode;
 }
 
+/**
+ * An internal component that handles the anonymous authentication lifecycle.
+ * It ensures a user is always signed in.
+ */
 function AuthHandler({ auth }: { auth: Auth | null }) {
   useEffect(() => {
+    // Do nothing if the auth service isn't available yet.
     if (!auth) return;
 
-    // Initially, if there's no user, sign in anonymously.
-    if (!auth.currentUser) {
-      initiateAnonymousSignIn(auth);
-    }
-    
-    // Then, listen for any future auth state changes.
+    // Set up a listener for authentication state changes.
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      // If the user is null (not signed in), initiate a new anonymous sign-in.
       if (!user) {
-        // If the user signs out, sign them back in anonymously.
         initiateAnonymousSignIn(auth);
       }
     });
 
-    // Cleanup subscription on unmount
+    // Cleanup the subscription when the component unmounts.
     return () => unsubscribe();
-  }, [auth]);
+  }, [auth]); // Re-run the effect if the auth instance changes.
 
-  return null; // This component does not render anything
+  return null; // This component does not render anything to the UI.
 }
 
 
 export function FirebaseClientProvider({ children }: FirebaseClientProviderProps) {
   const firebaseServices = useMemo(() => {
-    // Initialize Firebase on the client side, once per component mount.
+    // Initialize Firebase on the client side, once per provider mount.
     return initializeFirebase();
-  }, []); // Empty dependency array ensures this runs only once on mount
+  }, []);
 
   return (
     <FirebaseProvider

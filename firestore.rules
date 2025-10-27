@@ -1,113 +1,94 @@
 /**
- * @fileoverview Firestore Security Rules for Medo.Ai Time Hub
+ * @file Overview
+ * This ruleset enforces a strict user-ownership model for all data.
+ * All data is nested under /users/{userId}, and only the authenticated user matching {userId} can read or write to that data.
  *
- * Core Philosophy:
- * This ruleset enforces a strict user-ownership model. Each user has full control
- * over their own data, and no access to other users' data. The rules are designed
- * to prevent unauthorized data access and modification.
+ * @data-structure
+ * - /users/{userId}: Stores user profile information.
+ * - /users/{userId}/uploadedFiles/{fileId}: Stores files and text content created by each user.
+ * - /users/{userId}/mindMapSessions/{sessionId}: Stores mind map sessions for each user.
  *
- * Data Structure:
- * - /users/{userId}: Stores user profile information, accessible only by the user.
- * - /users/{userId}/uploadedFiles/{fileId}: Stores files and content, accessible only by the user.
- * - /users/{userId}/mindMapSessions/{sessionId}: Stores mind map sessions, accessible only by the user.
+ * @key-security-decisions
+ * - Users can only access their own data.
+ * - Listing of users is disallowed.
  *
- * Key Security Decisions:
- * - User listing is disallowed.
- * - Data validation is relaxed in this prototype to allow for rapid iteration,
- *   focusing on authorization.
- *
- * Denormalization for Authorization:
- * The 'userId' field is included in the 'UploadedFile' and 'MindMapSession' entities
- * to allow for efficient authorization checks without additional reads.
- *
- * Structural Segregation:
- * User-specific data is stored under the /users/{userId} path to enforce
- * clear ownership and prevent accidental exposure.
+ * @denormalization-rationale
+ * The 'userId' field is included in the UploadedFile and MindMapSession documents to avoid needing to perform additional reads to verify ownership. The alternative would be to query the /users/{userId} document from a rule on the subcollection, which is not possible.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to user profile documents.
-     * @path /databases/{database}/documents/users/{userId}
-     * @allow (create) If the user's UID matches the userId in the path.
-     * @allow (get, update, delete) If the user's UID matches the userId in the path.
-     * @deny (list) Listing all users is not permitted.
-     * @deny (create, update, delete) If the user's UID does not match the userId in the path.
+     * @description Enforces access control for user profile documents.
+     * @path /users/{userId}
+     * @allow (create) - Authenticated user creates their own profile if the userId matches their auth.uid.
+     * @allow (get, update, delete) - Authenticated user can only access their own profile.
+     * @deny (create) - If the authenticated user's ID doesn't match the userId in the path.
+     * @deny (get, update, delete) - If the authenticated user's ID doesn't match the userId in the path.
+     * @deny (list) - Listing all users is disallowed.
      * @principle Enforces document ownership for all operations.
      */
     match /users/{userId} {
-      // Helper function to check if the user is signed in.
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      // Helper function to check if the user is the owner of the document.
       function isOwner(userId) {
-        return request.auth.uid == userId;
+        return request.auth != null && request.auth.uid == userId;
       }
 
-      // Helper function to check if the user is the owner of the document and the document exists.
       function isExistingOwner(userId) {
-        return isOwner(userId) && existsAfter(/databases/$(database)/documents/users/$(userId));
+          return isOwner(userId) && resource != null;
       }
 
       allow get: if isOwner(userId);
-      allow list: if false; // User listing is not permitted
-
-      // Allow the user to create their own profile if the userId matches their auth.uid
-      allow create: if isOwner(userId);
-
-      // Allow the user to update their own profile if the userId matches their auth.uid and the document exists
-      allow update: if isOwner(userId) && existsAfter(/databases/$(database)/documents/users/$(userId));
-
-      // Allow the user to delete their own profile if the userId matches their auth.uid and the document exists
-      allow delete: if isOwner(userId) && existsAfter(/databases/$(database)/documents/users/$(userId));
+      allow list: if false;
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
+    }
 
     /**
-     * @description Controls access to uploaded files for a specific user.
-     * @path /databases/{database}/documents/users/{userId}/uploadedFiles/{fileId}
-     * @allow (create) If the user's UID matches the userId in the path.
-     * @allow (get, list, update, delete) If the user's UID matches the userId in the path.
-     * @deny (create, update, delete) If the user's UID does not match the userId in the path.
+     * @description Enforces access control for uploaded files within a user's profile.
+     * @path /users/{userId}/uploadedFiles/{fileId}
+     * @allow (create, get, list, update, delete) - Authenticated user can only access their own uploaded files.
+     * @deny (create, get, list, update, delete) - If the authenticated user's ID doesn't match the userId in the path.
      * @principle Enforces document ownership for all operations.
      */
-      match /uploadedFiles/{fileId} {
-        allow get: if isOwner(userId);
-        allow list: if isOwner(userId);
-
-        // Allow the user to create their own uploaded files if the userId matches their auth.uid
-        allow create: if isOwner(userId);
-
-        // Allow the user to update their own uploaded files if the userId matches their auth.uid and the document exists
-        allow update: if isOwner(userId) && existsAfter(/databases/$(database)/documents/users/$(userId)/uploadedFiles/$(fileId));
-
-        // Allow the user to delete their own uploaded files if the userId matches their auth.uid and the document exists
-        allow delete: if isOwner(userId) && existsAfter(/databases/$(database)/documents/users/$(userId)/uploadedFiles/$(fileId));
+    match /users/{userId}/uploadedFiles/{fileId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
       }
+
+      function isExistingOwner(userId) {
+          return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
+    }
 
     /**
-     * @description Controls access to mind map sessions for a specific user.
-     * @path /databases/{database}/documents/users/{userId}/mindMapSessions/{sessionId}
-     * @allow (create) If the user's UID matches the userId in the path.
-     * @allow (get, list, update, delete) If the user's UID matches the userId in the path.
-     * @deny (create, update, delete) If the user's UID does not match the userId in the path.
+     * @description Enforces access control for mind map sessions within a user's profile.
+     * @path /users/{userId}/mindMapSessions/{sessionId}
+     * @allow (create, get, list, update, delete) - Authenticated user can only access their own mind map sessions.
+     * @deny (create, get, list, update, delete) - If the authenticated user's ID doesn't match the userId in the path.
      * @principle Enforces document ownership for all operations.
      */
-      match /mindMapSessions/{sessionId} {
-        allow get: if isOwner(userId);
-        allow list: if isOwner(userId);
-
-        // Allow the user to create their own mind map sessions if the userId matches their auth.uid
-        allow create: if isOwner(userId);
-
-        // Allow the user to update their own mind map sessions if the userId matches their auth.uid and the document exists
-        allow update: if isOwner(userId) && existsAfter(/databases/$(database)/documents/users/$(userId)/mindMapSessions/$(sessionId));
-
-        // Allow the user to delete their own mind map sessions if the userId matches their auth.uid and the document exists
-        allow delete: if isOwner(userId) && existsAfter(/databases/$(database)/documents/users/$(userId)/mindMapSessions/$(sessionId));
+    match /users/{userId}/mindMapSessions/{sessionId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
       }
+
+       function isExistingOwner(userId) {
+          return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
     }
   }
 }

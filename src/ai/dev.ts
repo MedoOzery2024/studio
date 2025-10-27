@@ -4,3 +4,4 @@ import './flows/speech-to-text-flow';
 import './flows/summarize-text-flow';
 import './flows/assistant-flow';
 import './flows/text-to-speech-flow';
+import './flows/mind-map-flow';

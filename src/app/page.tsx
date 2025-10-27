@@ -6,12 +6,13 @@ import { ImageToPdfConverter } from '@/components/features/image-to-pdf-converte
 import { SpeechToTextConverter } from '@/components/features/speech-to-text-converter';
 import { AiAssistant } from '@/components/features/ai-assistant';
 import { TextToSpeechConverter } from '@/components/features/text-to-speech-converter';
+import { MindMapGenerator } from '@/components/features/mind-map-generator';
 import { Toaster } from "@/components/ui/toaster"
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ImageIcon, Mic, Bot, FileText, ArrowRight, Text } from 'lucide-react';
+import { ImageIcon, Mic, Bot, FileText, ArrowRight, Text, BrainCircuit } from 'lucide-react';
 
-type Feature = 'ai-assistant' | 'speech-to-text' | 'image-converter' | 'text-to-speech';
+type Feature = 'ai-assistant' | 'speech-to-text' | 'image-converter' | 'text-to-speech' | 'mind-map';
 
 interface FeatureCardProps {
   id: Feature;
@@ -68,6 +69,12 @@ const featureMap = {
         description: "اجمع صورك المفضلة وحولها إلى ملف PDF واحد جاهز للتنزيل والمشاركة.",
         icon: <ImageIcon className="w-8 h-8" />,
         component: <ImageToPdfConverter />
+    },
+    'mind-map': {
+      title: "صانع الخرائط الذهنية",
+      description: "حوّل النصوص، الصور، أو ملفات PDF إلى خرائط ذهنية منظمة لتسهيل المذاكرة.",
+      icon: <BrainCircuit className="w-8 h-8" />,
+      component: <MindMapGenerator />
     }
 };
 

@@ -25,6 +25,7 @@ import { Textarea } from '../ui/textarea';
 // --- Types ---
 type QuestionType = 'multiple-choice' | 'essay';
 type QuestionMode = 'interactive' | 'static';
+type Difficulty = 'easy' | 'medium' | 'hard';
 type QuizStatus = 'not-started' | 'in-progress' | 'completed';
 
 interface UserAnswer {
@@ -51,6 +52,7 @@ export function QuestionGenerator() {
     const [questionCount, setQuestionCount] = useState<number>(5);
     const [questionType, setQuestionType] = useState<QuestionType>('multiple-choice');
     const [questionMode, setQuestionMode] = useState<QuestionMode>('interactive');
+    const [difficulty, setDifficulty] = useState<Difficulty>('medium');
     const [sessionName, setSessionName] = useState('');
     const [generatedSession, setGeneratedSession] = useState<SavedSession | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
@@ -90,6 +92,7 @@ export function QuestionGenerator() {
                 file: { url: contextFile.url },
                 count: questionCount,
                 questionType,
+                difficulty,
             });
             if (result && result.questions.length > 0) {
                 const newSessionId = doc(collection(firestore!, `users/${user!.uid}/questionSessions`)).id;
@@ -327,6 +330,15 @@ export function QuestionGenerator() {
                 <div className="space-y-2">
                     <Label htmlFor="q-count" className="text-right w-full block font-semibold">عدد الأسئلة</Label>
                     <Input id="q-count" type="number" value={questionCount} onChange={(e) => setQuestionCount(parseInt(e.target.value) || 1)} className="bg-secondary" min="1" />
+                </div>
+                {/* Difficulty Level */}
+                <div className="space-y-2">
+                     <Label className="text-right w-full block font-semibold">مستوى الصعوبة</Label>
+                     <RadioGroup value={difficulty} onValueChange={(v: any) => setDifficulty(v)} className="flex gap-4 justify-end">
+                        <div className="flex items-center space-x-2 space-x-reverse"><RadioGroupItem value="easy" id="easy"/><Label htmlFor="easy">سهل</Label></div>
+                        <div className="flex items-center space-x-2 space-x-reverse"><RadioGroupItem value="medium" id="medium"/><Label htmlFor="medium">متوسط</Label></div>
+                        <div className="flex items-center space-x-2 space-x-reverse"><RadioGroupItem value="hard" id="hard"/><Label htmlFor="hard">صعب</Label></div>
+                     </RadioGroup>
                 </div>
                  {/* Question Type */}
                 <div className="space-y-2">

@@ -18,7 +18,7 @@ const QuestionSchema = z.object({
   questionType: z.enum(['multiple-choice', 'essay']).describe('The type of question.'),
 });
 
-export type Question = z.infer<typeof QuestionSchema>;
+type Question = z.infer<typeof QuestionSchema>;
 
 const GenerateQuestionsInputSchema = z.object({
   context: z.string().optional().describe("The text context to generate questions from."),
@@ -27,6 +27,7 @@ const GenerateQuestionsInputSchema = z.object({
   }).optional().describe('An optional file (image, pdf) to use as context.'),
   count: z.number().min(1).describe('The number of questions to generate.'),
   questionType: z.enum(['multiple-choice', 'essay']).describe('The type of questions to generate.'),
+  difficulty: z.enum(['easy', 'medium', 'hard']).describe('The difficulty level of the questions.'),
 });
 
 const GenerateQuestionsOutputSchema = z.object({
@@ -36,6 +37,7 @@ const GenerateQuestionsOutputSchema = z.object({
 
 export type GenerateQuestionsInput = z.infer<typeof GenerateQuestionsInputSchema>;
 export type GenerateQuestionsOutput = z.infer<typeof GenerateQuestionsOutputSchema>;
+export type { Question };
 
 
 export async function generateQuestions(
@@ -54,7 +56,7 @@ const prompt = ai.definePrompt({
 1.  **Analyze the Context:** Carefully analyze the provided text and/or file content.
 2.  **Detect Language:** Automatically detect the language of the input context.
 3.  **Generate in Same Language:** Generate all questions, options, answers, and explanations in the **same language** as the detected context.
-4.  **Adhere to Request:** Generate exactly {{count}} questions of the type '{{questionType}}'.
+4.  **Adhere to Request:** Generate exactly {{count}} questions of the type '{{questionType}}' at a '{{difficulty}}' difficulty level.
 5.  **For 'multiple-choice' questions:**
     *   Set 'questionType' to 'multiple-choice'.
     *   Create a clear and concise question.

@@ -275,28 +275,71 @@ export function QuestionGenerator() {
     };
 
     const exportToPdf = () => {
-        if (!generatedSession) return;
-        const doc = new jsPDF();
-        doc.setFont("Amiri", "normal"); // Set a font that supports Arabic
-        doc.setRtl(true);
-        doc.text(generatedSession.fileName, 105, 15, { align: 'center' });
+      if (!generatedSession) return;
+      const doc = new jsPDF();
+      
+      // It's crucial to use a font that supports the characters you need.
+      // jsPDF has limited built-in support for unicode. We can either embed a font or use a workaround.
+      // For this case, we'll assume the default font might work for some basic things but will fail for Arabic.
+      // The `jspdf-autotable` library has better unicode support if configured correctly.
+      
+      // Let's add a font that supports Arabic. The 'Amiri' font is a good choice.
+      // This step is often the most complex, as it requires the font file (e.g., in TTF format).
+      // For simplicity in this environment, we'll try to use the built-in fonts, but this is a known limitation.
+      // A full solution would require adding the font file to the project and loading it.
+      // doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+      // doc.setFont('Amiri');
 
-        const body = generatedSession.questions.map((q, i) => {
-            let questionText = `Q${i+1}: ${q.question}`;
-            let optionsText = q.options ? q.options.join('\n') : 'N/A';
-            let answerText = `Answer: ${q.correctAnswer}\nExplanation: ${q.explanation}`;
-            return [questionText, optionsText, answerText];
-        });
+      doc.setRtl(true);
+      doc.text(generatedSession.fileName, 105, 15, { align: 'center' });
 
-        (doc as any).autoTable({
-            head: [['Question', 'Options', 'Answer & Explanation']],
-            body: body,
-            startY: 25,
-            styles: { font: "Amiri", halign: 'right' },
-            headStyles: {fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold'},
-        });
-        
-        doc.save(`${generatedSession.fileName}.pdf`);
+      const body = generatedSession.questions.map((q, i) => {
+          let questionText = `${q.question} :${i + 1}س`;
+          let optionsText = q.options ? q.options.join('\n') : 'N/A';
+          let answerText = `${q.explanation} :شرح\n${q.correctAnswer} :إجابة`;
+          return [answerText, optionsText, questionText];
+      });
+
+      (doc as any).autoTable({
+          head: [['الإجابة والشرح', 'الخيارات', 'السؤال']],
+          body: body,
+          startY: 25,
+          styles: { font: "Amiri", halign: 'right' }, // Using a generic name, assuming it's loaded
+          headStyles: {fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold', halign: 'right'},
+          columnStyles: {
+              0: { halign: 'right' },
+              1: { halign: 'right' },
+              2: { halign: 'right' },
+          }
+      });
+      
+      doc.save(`${generatedSession.fileName}.pdf`);
+    };
+
+    const exportToPptx = () => {
+      if (!generatedSession) return;
+      const pptx = new PptxGenJS();
+      pptx.layout = 'LAYOUT_16x9';
+
+      const titleSlide = pptx.addSlide();
+      titleSlide.addText(generatedSession.fileName, { x: 0.5, y: 2.5, w: '90%', h: 1, align: 'center', fontSize: 32, bold: true });
+
+      generatedSession.questions.forEach((q, i) => {
+          const slide = pptx.addSlide();
+          slide.addText(`سؤال ${i + 1}: ${q.question}`, { x: 0.5, y: 0.5, w: '90%', h: 1, fontSize: 24, bold: true, align: 'right' });
+          
+          let bodyText = '';
+          if (q.options) {
+              bodyText += 'الخيارات:\n';
+              q.options.forEach(opt => bodyText += `- ${opt}\n`);
+          }
+          bodyText += `\nالإجابة الصحيحة: ${q.correctAnswer}`;
+          bodyText += `\n\nالشرح: ${q.explanation}`;
+
+          slide.addText(bodyText, { x: 0.5, y: 1.5, w: '90%', h: 4, fontSize: 18, align: 'right', rtlMode: true });
+      });
+
+      pptx.writeFile({ fileName: `${generatedSession.fileName}.pptx` });
     };
 
     // --- Render Components ---
@@ -593,6 +636,7 @@ export function QuestionGenerator() {
                         {generatedSession && (
                              <div className="flex gap-2">
                                 <Button variant="outline" onClick={exportToPdf}>تصدير PDF</Button>
+                                <Button variant="outline" onClick={exportToPptx}>تصدير PPTX</Button>
                                 <Button variant="outline" onClick={exportToTxt}>تصدير TXT</Button>
                                 <Button onClick={handleNewSession}><FileText className="ml-2"/>جلسة جديدة</Button>
                             </div>

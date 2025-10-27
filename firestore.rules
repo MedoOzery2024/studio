@@ -1,120 +1,124 @@
 /**
- * @file Firebase Security Rules for Medo.Ai Time Hub - Question Generation Section
- * @core_philosophy This ruleset enforces a strict user-ownership model.
- *   Each user can only access and modify their own data.
- * @data_structure All data is nested under /users/{userId}, ensuring data isolation.
- *   - /users/{userId}: User profile information.
- *   - /users/{userId}/uploadedFiles/{fileId}: Files uploaded by the user.
- *   - /users/{userId}/mindMapSessions/{sessionId}: Mind map sessions created by the user.
- * @key_security_decisions
- *   - User listing is explicitly denied to protect user privacy.
- *   - Every write operation is protected by an authorization check to prevent unauthorized data modification.
- *   - Data consistency between the path and document fields is enforced on create and update.
+ * @fileoverview Firestore Security Rules for Medo.Ai Time Hub
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model.  Each user can only
+ * access their own data, and no data is publicly accessible without authentication.
+ *
+ * Data Structure:
+ * - User profiles are stored under `/users/{userId}`.
+ * - Uploaded files are stored under `/users/{userId}/uploadedFiles/{fileId}`.
+ * - Mind map sessions are stored under `/users/{userId}/mindMapSessions/{sessionId}`.
+ * - Question sessions are stored under `/users/{userId}/questionSessions/{sessionId}`.
+ *
+ * Key Security Decisions:
+ * - Users can only read and write their own user document.
+ * - Users can only read, create, update, and delete files, mind maps, and question sessions that they own.
+ * - Listing of user documents is not permitted.
+ *
+ * Denormalization for Authorization:
+ *  - All subcollection documents contain the `userId` to simply authorization logic and avoid costly `get()` calls.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Root-level access is denied.
-     * @path /
-     * @allow None. No operations are allowed at the root level.
-     * @deny All operations.
-     * @principle Prevents accidental data access or modification at the root level.
-     */
-    match /{document=**} {
-      allow read, write: if false;
-    }
-
-    /**
-     * @description Rules for the /users collection.
-     *   Allows a user to create their own profile.
-     *   After creation, only the user can read or modify their profile.
+     * @description Secure access to user profile information.
      * @path /users/{userId}
-     * @allow (create) User with ID 'user123' can create a document where request.auth.uid == 'user123'.
-     * @allow (get, update, delete) User with ID 'user123' can get, update, or delete their own profile.
+     * @allow (create) User with ID 'user123' can create their profile.
+     * @allow (get) User with ID 'user123' can read their profile.
+     * @allow (update) User with ID 'user123' can update their profile.
+     * @allow (delete) User with ID 'user123' can delete their profile.
      * @deny (create) User with ID 'user456' cannot create a profile for 'user123'.
-     * @deny (get, update, delete) User with ID 'user456' cannot access or modify profile of 'user123'.
-     * @principle Enforces user-ownership for profile data.
+     * @deny (get) User with ID 'user456' cannot read the profile of 'user123'.
+     * @deny (update) User with ID 'user456' cannot update the profile of 'user123'.
+     * @deny (delete) User with ID 'user456' cannot delete the profile of 'user123'.
+     * @deny (list) No one can list all users.
+     * @principle Enforces document ownership for all operations.
      */
     match /users/{userId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      function isExistingOwner(userId) {
-        return isOwner(userId) && exists(resource);
-      }
-
       allow get: if isOwner(userId);
-      allow list: if false; // User listing is not permitted.
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isExistingOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) && resource.data.id == userId;
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Rules for the /uploadedFiles collection.
-     *   Allows a user to manage their own uploaded files.
+     * @description Secure access to uploaded files for each user.
      * @path /users/{userId}/uploadedFiles/{fileId}
      * @allow (create) User with ID 'user123' can create a file under their profile.
-     * @allow (get, list, update, delete) User with ID 'user123' can manage their own files.
-     * @deny (create) User with ID 'user456' cannot create a file for 'user123'.
-     * @deny (get, list, update, delete) User with ID 'user456' cannot access or modify files of 'user123'.
-     * @principle Enforces user-ownership for uploaded files.
+     * @allow (get) User with ID 'user123' can read their uploaded file.
+     * @allow (update) User with ID 'user123' can update their uploaded file.
+     * @allow (delete) User with ID 'user123' can delete their uploaded file.
+     * @deny (create) User with ID 'user456' cannot create a file under 'user123' profile.
+     * @deny (get) User with ID 'user456' cannot read the uploaded file of 'user123'.
+     * @deny (update) User with ID 'user456' cannot update the uploaded file of 'user123'.
+     * @deny (delete) User with ID 'user456' cannot delete the uploaded file of 'user123'.
+     * @principle Enforces document ownership for writes and reads.
      */
     match /users/{userId}/uploadedFiles/{fileId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      function isExistingOwner(userId) {
-        return isOwner(userId) && exists(resource);
-      }
-
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isExistingOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isOwner(userId) && resource.data.userId == userId;
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Rules for the /mindMapSessions collection.
-     *   Allows a user to manage their own mind map sessions.
+     * @description Secure access to mind map sessions for each user.
      * @path /users/{userId}/mindMapSessions/{sessionId}
-     * @allow (create) User with ID 'user123' can create a session under their profile.
-     * @allow (get, list, update, delete) User with ID 'user123' can manage their own sessions.
-     * @deny (create) User with ID 'user456' cannot create a session for 'user123'.
-     * @deny (get, list, update, delete) User with ID 'user456' cannot access or modify sessions of 'user123'.
-     * @principle Enforces user-ownership for mind map sessions.
+     * @allow (create) User with ID 'user123' can create a mind map session under their profile.
+     * @allow (get) User with ID 'user123' can read their mind map session.
+     * @allow (update) User with ID 'user123' can update their mind map session.
+     * @allow (delete) User with ID 'user123' can delete their mind map session.
+     * @deny (create) User with ID 'user456' cannot create a mind map session under 'user123' profile.
+     * @deny (get) User with ID 'user456' cannot read the mind map session of 'user123'.
+     * @deny (update) User with ID 'user456' cannot update the mind map session of 'user123'.
+     * @deny (delete) User with ID 'user456' cannot delete the mind map session of 'user123'.
+     * @principle Enforces document ownership for writes and reads.
      */
     match /users/{userId}/mindMapSessions/{sessionId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      function isExistingOwner(userId) {
-        return isOwner(userId) && exists(resource);
-      }
-
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isExistingOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isOwner(userId) && resource.data.userId == userId;
       allow delete: if isExistingOwner(userId);
     }
+
+    /**
+     * @description Secure access to question sessions for each user.
+     * @path /users/{userId}/questionSessions/{sessionId}
+     * @allow (create) User with ID 'user123' can create a question session under their profile.
+     * @allow (get) User with ID 'user123' can read their question session.
+     * @allow (update) User with ID 'user123' can update their question session.
+     * @allow (delete) User with ID 'user123' can delete their question session.
+     * @deny (create) User with ID 'user456' cannot create a question session under 'user123' profile.
+     * @deny (get) User with ID 'user456' cannot read the question session of 'user123'.
+     * @deny (update) User with ID 'user456' cannot update the question session of 'user123'.
+     * @deny (delete) User with ID 'user456' cannot delete the question session of 'user123'.
+     * @principle Enforces document ownership for writes and reads.
+     */
+    match /users/{userId}/questionSessions/{sessionId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isOwner(userId) && resource.data.userId == userId;
+      allow delete: if isExistingOwner(userId);
+    }
+  }
+
+  // Helper functions
+  function isSignedIn() {
+    return request.auth != null;
+  }
+
+  function isOwner(userId) {
+    return isSignedIn() && request.auth.uid == userId;
+  }
+
+  function isExistingOwner(userId) {
+    return isOwner(userId) && resource != null;
   }
 }

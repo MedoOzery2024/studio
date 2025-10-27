@@ -88,46 +88,6 @@
         "email",
         "registrationDate"
       ]
-    },
-    "QuestionSession": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "QuestionSession",
-      "type": "object",
-      "description": "Represents a saved session of generated questions.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the question session."
-        },
-        "fileName": {
-          "type": "string",
-          "description": "The name of the session or the source file name."
-        },
-        "questions": {
-          "type": "array",
-          "description": "An array of generated questions.",
-          "items": {
-            "type": "object",
-            "properties": {
-              "question": {"type": "string"},
-              "options": {"type": "array", "items": {"type": "string"}},
-              "correctAnswer": {"type": "string"},
-              "explanation": {"type": "string"}
-            },
-            "required": ["question", "options", "correctAnswer", "explanation"]
-          }
-        },
-        "isInteractive": {
-          "type": "boolean",
-          "description": "Whether the questions are multiple-choice."
-        },
-        "uploadDate": {
-          "type": "string",
-          "description": "The date and time when the session was saved.",
-          "format": "date-time"
-        }
-      },
-      "required": ["id", "fileName", "questions", "isInteractive", "uploadDate"]
     }
   },
   "auth": {
@@ -148,12 +108,6 @@
         "$ref": "#/entities/UploadedFile"
       },
       "description": "Stores files and text content created by each user. Includes denormalized 'userId' for authorization independence."
-    },
-    "/users/{userId}/questionSessions/{sessionId}": {
-      "schema": {
-        "$ref": "#/entities/QuestionSession"
-      },
-      "description": "Stores generated question sessions for each user. Path-based ownership ensures only the user can access their own sessions."
     }
   }
 }

@@ -3,16 +3,15 @@
 import { useState } from 'react';
 import { ClockDisplay } from '@/components/features/clock-display';
 import { ImageToPdfConverter } from '@/components/features/image-to-pdf-converter';
-import { QuestionGenerator } from '@/components/features/question-generator';
 import { SpeechToTextConverter } from '@/components/features/speech-to-text-converter';
 import { AiAssistant } from '@/components/features/ai-assistant';
 import { TextToSpeechConverter } from '@/components/features/text-to-speech-converter';
 import { Toaster } from "@/components/ui/toaster"
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ImageIcon, BrainCircuit, Mic, Bot, FileText, ArrowRight, Text } from 'lucide-react';
+import { ImageIcon, Mic, Bot, FileText, ArrowRight, Text } from 'lucide-react';
 
-type Feature = 'ai-assistant' | 'speech-to-text' | 'question-generator' | 'image-converter' | 'text-to-speech';
+type Feature = 'ai-assistant' | 'speech-to-text' | 'image-converter' | 'text-to-speech';
 
 interface FeatureCardProps {
   id: Feature;
@@ -57,12 +56,6 @@ const featureMap = {
         description: "سجل صوتك باستخدام الميكروفون، وقم بتحويله إلى نص مكتوب وتلخيصه بسهولة.",
         icon: <Mic className="w-8 h-8" />,
         component: <SpeechToTextConverter />
-    },
-    'question-generator': {
-        title: "توليد الأسئلة",
-        description: "ارفع ملف PDF أو صورة واستخرج منها أسئلة بمستويات صعوبة مختلفة.",
-        icon: <BrainCircuit className="w-8 h-8" />,
-        component: <QuestionGenerator />
     },
      'text-to-speech': {
         title: "تحويل النص إلى كلام",

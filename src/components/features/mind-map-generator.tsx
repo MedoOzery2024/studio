@@ -93,6 +93,7 @@ export function MindMapGenerator() {
         }
         
         setIsSaving(true);
+        const isUpdating = !!selectedSessionId;
         const sessionId = selectedSessionId || doc(collection(firestore, `users/${user.uid}/mindMapSessions`)).id;
         const docRef = doc(firestore, `users/${user.uid}/mindMapSessions`, sessionId);
         
@@ -103,18 +104,25 @@ export function MindMapGenerator() {
             uploadDate: new Date().toISOString(),
         };
 
-        setDoc(docRef, dataToSave, { merge: true })
+        const saveOperation = isUpdating 
+            ? setDoc(docRef, dataToSave, { merge: true }) 
+            : setDoc(docRef, dataToSave);
+
+        saveOperation
             .then(() => {
                 toast({ title: "تم الحفظ بنجاح!", description: `تم حفظ جلسة "${name.trim()}".` });
-                setSelectedSessionId(sessionId);
+                if (!isUpdating) {
+                  setSelectedSessionId(sessionId);
+                }
             })
             .catch((serverError) => {
                 const permissionError = new FirestorePermissionError({
                     path: docRef.path,
-                    operation: selectedSessionId ? 'update' : 'create',
+                    operation: isUpdating ? 'update' : 'create',
                     requestResourceData: dataToSave,
                 });
                 errorEmitter.emit('permission-error', permissionError);
+                toast({ variant: "destructive", title: "خطأ في حفظ الجلسة" });
             })
             .finally(() => {
                 setIsSaving(false);
@@ -384,5 +392,3 @@ export function MindMapGenerator() {
         </div>
     );
 }
-
-    

@@ -132,10 +132,10 @@ export function MindMapGenerator() {
     
     useEffect(() => {
         const handler = setTimeout(() => {
-            if (sessionName && generatedMap && user && selectedSessionId) { // Only save automatically for existing sessions
-                handleSaveSession(sessionName);
+            if (sessionName && generatedMap && user && selectedSessionId) {
+                 handleSaveSession(sessionName);
             }
-        }, 1500); // Debounce time
+        }, 1500); 
 
         return () => clearTimeout(handler);
     }, [sessionName, generatedMap, user, selectedSessionId, handleSaveSession]);
@@ -264,7 +264,6 @@ export function MindMapGenerator() {
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left Column: Inputs and Settings */}
             <Card className="lg:col-span-1 h-fit shadow-lg bg-card border-none">
                  <CardHeader>
                     <CardTitle className="text-center text-xl font-bold text-primary">إنشاء خريطة ذهنية</CardTitle>
@@ -313,7 +312,6 @@ export function MindMapGenerator() {
                 </CardContent>
             </Card>
             
-            {/* Middle Column: Mind Map Display */}
             <Card className="lg:col-span-2 shadow-lg bg-card border-none">
                 <CardHeader>
                      <div className="flex w-full flex-col sm:flex-row items-center gap-4" dir="rtl">
@@ -359,7 +357,6 @@ export function MindMapGenerator() {
                  )}
             </Card>
 
-            {/* Right Column: Saved Sessions (only if user is logged in) */}
              {user && (
                 <Card className="lg:col-span-3 shadow-lg bg-card border-none">
                      <CardHeader>

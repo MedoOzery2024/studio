@@ -7,12 +7,13 @@ import { SpeechToTextConverter } from '@/components/features/speech-to-text-conv
 import { AiAssistant } from '@/components/features/ai-assistant';
 import { TextToSpeechConverter } from '@/components/features/text-to-speech-converter';
 import { MindMapGenerator } from '@/components/features/mind-map-generator';
+import { QuestionGenerator } from '@/components/features/question-generator';
 import { Toaster } from "@/components/ui/toaster"
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ImageIcon, Mic, Bot, FileText, ArrowRight, Text, BrainCircuit } from 'lucide-react';
+import { ImageIcon, Mic, Bot, FileText, ArrowRight, Text, BrainCircuit, FileQuestion } from 'lucide-react';
 
-type Feature = 'ai-assistant' | 'speech-to-text' | 'image-converter' | 'text-to-speech' | 'mind-map';
+type Feature = 'ai-assistant' | 'speech-to-text' | 'image-converter' | 'text-to-speech' | 'mind-map' | 'question-generator';
 
 interface FeatureCardProps {
   id: Feature;
@@ -75,6 +76,12 @@ const featureMap = {
       description: "حوّل النصوص، الصور، أو ملفات PDF إلى خرائط ذهنية منظمة لتسهيل المذاكرة.",
       icon: <BrainCircuit className="w-8 h-8" />,
       component: <MindMapGenerator />
+    },
+    'question-generator': {
+        title: "مولد الأسئلة",
+        description: "أنشئ اختبارات تفاعلية (اختيار من متعدد ومقالي) من أي محتوى، مع تصحيح ذكي.",
+        icon: <FileQuestion className="w-8 h-8" />,
+        component: <QuestionGenerator />
     }
 };
 
@@ -96,7 +103,7 @@ export default function Home() {
     }
     
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {Object.keys(featureMap).map(key => {
                 const feature = featureMap[key as Feature];
                 return (

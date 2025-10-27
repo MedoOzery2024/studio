@@ -124,6 +124,63 @@
         "uploadDate",
         "userId"
       ]
+    },
+     "QuestionSession": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "QuestionSession",
+      "type": "object",
+      "description": "Represents a saved session of generated questions, including user answers.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the question session."
+        },
+        "fileName": {
+          "type": "string",
+          "description": "The name of the session or the source file name."
+        },
+        "questions": {
+          "type": "array",
+          "description": "An array of generated questions.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "question": {"type": "string"},
+              "options": {"type": "array", "items": {"type": "string"}},
+              "correctAnswer": {"type": "string"},
+              "explanation": {"type": "string"}
+            },
+            "required": ["question", "correctAnswer", "explanation"]
+          }
+        },
+        "questionType": {
+           "type": "string",
+           "enum": ["multiple-choice", "essay"]
+        },
+        "uploadDate": {
+          "type": "string",
+          "description": "The date and time when the session was saved.",
+          "format": "date-time"
+        },
+        "userId": {
+            "type": "string",
+            "description": "The user who created the session."
+        },
+        "userAnswers": {
+          "type": "array",
+          "description": "An array of the user's answers for this session.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "questionIndex": {"type": "number"},
+              "selectedOption": {"type": "string"},
+              "isCorrect": {"type": "boolean"}
+            },
+            "required": ["questionIndex"]
+          }
+        }
+      },
+      "required": ["id", "fileName", "questions", "questionType", "uploadDate", "userId"]
     }
   },
   "auth": {
@@ -150,6 +207,12 @@
         "$ref": "#/entities/MindMapSession"
       },
       "description": "Stores generated mind map sessions for each user. Path-based ownership ensures only the user can access their own sessions."
+    },
+    "/users/{userId}/questionSessions/{sessionId}": {
+      "schema": {
+        "$ref": "#/entities/QuestionSession"
+      },
+      "description": "Stores generated question sessions for each user. Path-based ownership ensures only the user can access their own sessions."
     }
   }
 }

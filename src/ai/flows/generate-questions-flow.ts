@@ -17,7 +17,7 @@ const QuestionSchema = z.object({
   explanation: z.string().describe('A brief explanation of why the correct answer is right.'),
 });
 
-export const GenerateQuestionsInputSchema = z.object({
+const GenerateQuestionsInputSchema = z.object({
   context: z.string().optional().describe("The text context to generate questions from."),
   file: z.object({
     url: z.string().describe("A data URI of the file. Expected format: 'data:<mimetype>;base64,<encoded_data>'."),
@@ -28,7 +28,7 @@ export const GenerateQuestionsInputSchema = z.object({
 export type GenerateQuestionsInput = z.infer<typeof GenerateQuestionsInputSchema>;
 
 
-export const GenerateQuestionsOutputSchema = z.object({
+const GenerateQuestionsOutputSchema = z.object({
   questions: z.array(QuestionSchema),
 });
 export type GenerateQuestionsOutput = z.infer<typeof GenerateQuestionsOutputSchema>;

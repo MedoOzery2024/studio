@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, Upload, FileDown, Trash2, FileQuestion, File as FileIcon, X, Save, FileText, View, Sparkles, Check, XIcon, Repeat, History, Pilcrow } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { generateQuestions, type Question, type GenerateQuestionsOutput } from '@/ai/flows/generate-questions-flow';
+import { generateQuestions, type Question } from '@/ai/flows/generate-questions-flow';
+import { correctEssay, type CorrectEssayOutput } from '@/ai/flows/correct-essay-flow';
 import { useUser, useFirestore, useMemoFirebase, useCollection, doc, setDoc, deleteDoc, collection } from '@/firebase';
 import { cn } from '@/lib/utils';
 import PptxGenJS from 'pptxgenjs';
@@ -19,6 +20,7 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Textarea } from '../ui/textarea';
 
 // --- Types ---
 type QuestionType = 'multiple-choice' | 'essay';
@@ -27,8 +29,9 @@ type QuizStatus = 'not-started' | 'in-progress' | 'completed';
 
 interface UserAnswer {
     questionIndex: number;
-    selectedOption: string;
-    isCorrect: boolean;
+    answer: string;
+    isCorrect?: boolean;
+    correction?: CorrectEssayOutput;
 }
 
 interface SavedSession {
@@ -36,6 +39,7 @@ interface SavedSession {
     fileName: string;
     questions: Question[];
     questionType: QuestionType;
+    questionMode: QuestionMode;
     uploadDate: string;
     userAnswers?: UserAnswer[];
 }
@@ -55,8 +59,10 @@ export function QuestionGenerator() {
     // Quiz State
     const [quizState, setQuizState] = useState<{ status: QuizStatus, answers: UserAnswer[] }>({ status: 'not-started', answers: [] });
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-    const [selectedOption, setSelectedOption] = useState<string | null>(null);
+    const [selectedAnswer, setSelectedAnswer] = useState<string>('');
     const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
+    const [isCorrecting, setIsCorrecting] = useState(false);
+
 
     // Refs and Hooks
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -78,9 +84,9 @@ export function QuestionGenerator() {
             return;
         }
         setIsGenerating(true);
-        handleNewSession(); // Reset state before generating
+        handleNewSession();
         try {
-            const result: GenerateQuestionsOutput = await generateQuestions({
+            const result = await generateQuestions({
                 file: { url: contextFile.url },
                 count: questionCount,
                 questionType,
@@ -92,11 +98,13 @@ export function QuestionGenerator() {
                     fileName: sessionName || `جلسة ${new Date().toLocaleDateString()}`,
                     questions: result.questions,
                     questionType: questionType,
+                    questionMode: questionMode,
                     uploadDate: new Date().toISOString(),
                     userAnswers: [],
                 };
                 setGeneratedSession(newSession);
                 setSelectedSessionId(newSessionId);
+                handleSaveSession(newSession, true); // Save the new session immediately
                 toast({ title: "تم إنشاء الأسئلة بنجاح!" });
             } else {
                 throw new Error("Failed to generate questions.");
@@ -116,25 +124,25 @@ export function QuestionGenerator() {
             reader.onload = (e) => {
                 const url = e.target?.result as string;
                 setContextFile({ name: file.name, url: url, type: file.type });
-                if (!sessionName) setSessionName(file.name);
+                if (!sessionName) setSessionName(file.name.split('.')[0]);
                 toast({ title: 'تم إرفاق الملف', description: `"${file.name}".` });
             };
             reader.readAsDataURL(file);
         }
     };
     
-    const handleSaveSession = useCallback(async (sessionToSave: SavedSession) => {
+    const handleSaveSession = useCallback(async (sessionToSave: SavedSession, isNew = false) => {
         if (!user || !firestore) return;
         const docRef = doc(firestore, `users/${user.uid}/questionSessions`, sessionToSave.id);
         
         setDoc(docRef, sessionToSave, { merge: true })
             .then(() => {
-                toast({ title: "تم تحديث الجلسة تلقائياً." });
+                if (!isNew) toast({ title: "تم تحديث الجلسة تلقائياً." });
             })
             .catch((serverError) => {
                 const permissionError = new FirestorePermissionError({
                     path: docRef.path,
-                    operation: 'update',
+                    operation: isNew ? 'create' : 'update',
                     requestResourceData: sessionToSave,
                 });
                 errorEmitter.emit('permission-error', permissionError);
@@ -148,7 +156,7 @@ export function QuestionGenerator() {
         setSelectedSessionId(null);
         setQuizState({ status: 'not-started', answers: [] });
         setCurrentQuestionIndex(0);
-        setSelectedOption(null);
+        setSelectedAnswer('');
         setIsAnswerSubmitted(false);
         if(fileInputRef.current) fileInputRef.current.value = "";
     };
@@ -169,9 +177,10 @@ export function QuestionGenerator() {
         setSessionName(session.fileName);
         setSelectedSessionId(session.id);
         setQuestionType(session.questionType);
+        setQuestionMode(session.questionMode);
         setQuizState({ status: 'not-started', answers: session.userAnswers || [] });
         setCurrentQuestionIndex(0);
-        setSelectedOption(null);
+        setSelectedAnswer('');
         setIsAnswerSubmitted(false);
         setContextFile(null);
         toast({ title: `جاري عرض: ${session.fileName}` });
@@ -185,29 +194,43 @@ export function QuestionGenerator() {
         setGeneratedSession(prev => prev ? { ...prev, questions: targetQuestions } : null);
         setQuizState({ status: 'in-progress', answers: [] });
         setCurrentQuestionIndex(0);
-        setSelectedOption(null);
+        setSelectedAnswer('');
         setIsAnswerSubmitted(false);
     };
 
     const handleAnswerSelect = (selected: string) => {
         if (isAnswerSubmitted) return;
-        setSelectedOption(selected);
+        setSelectedAnswer(selected);
     };
 
-    const handleSubmitAnswer = () => {
-        if (!selectedOption || !generatedSession) return;
+    const handleSubmitAnswer = async () => {
+        if (!selectedAnswer || !generatedSession) return;
         
         const currentQuestion = generatedSession.questions[currentQuestionIndex];
-        const isCorrect = selectedOption === currentQuestion.correctAnswer;
+        let newAnswer: UserAnswer;
 
-        const newAnswer: UserAnswer = {
-            questionIndex: currentQuestionIndex,
-            selectedOption,
-            isCorrect
-        };
-
-        setQuizState(prev => ({ ...prev, answers: [...prev.answers, newAnswer] }));
-        setIsAnswerSubmitted(true);
+        if (generatedSession.questionType === 'multiple-choice') {
+            const isCorrect = selectedAnswer === currentQuestion.correctAnswer;
+            newAnswer = { questionIndex: currentQuestionIndex, answer: selectedAnswer, isCorrect };
+            setQuizState(prev => ({ ...prev, answers: [...prev.answers, newAnswer] }));
+            setIsAnswerSubmitted(true);
+        } else { // Essay question
+            setIsCorrecting(true);
+            try {
+                const correction = await correctEssay({
+                    question: currentQuestion.question,
+                    idealAnswer: currentQuestion.correctAnswer,
+                    userAnswer: selectedAnswer
+                });
+                newAnswer = { questionIndex: currentQuestionIndex, answer: selectedAnswer, correction };
+                setQuizState(prev => ({ ...prev, answers: [...prev.answers, newAnswer] }));
+                setIsAnswerSubmitted(true);
+            } catch (e) {
+                toast({ variant: 'destructive', title: 'خطأ في التصحيح', description: 'فشل التواصل مع الذكاء الاصطناعي لتقييم الإجابة.' });
+            } finally {
+                setIsCorrecting(false);
+            }
+        }
     };
 
     const handleNextQuestion = () => {
@@ -220,7 +243,7 @@ export function QuestionGenerator() {
 
         if (currentQuestionIndex < generatedSession.questions.length - 1) {
             setCurrentQuestionIndex(prev => prev + 1);
-            setSelectedOption(null);
+            setSelectedAnswer('');
             setIsAnswerSubmitted(false);
         } else {
             setQuizState(prev => ({ ...prev, status: 'completed' }));
@@ -305,10 +328,10 @@ export function QuestionGenerator() {
                     <Label htmlFor="q-count" className="text-right w-full block font-semibold">عدد الأسئلة</Label>
                     <Input id="q-count" type="number" value={questionCount} onChange={(e) => setQuestionCount(parseInt(e.target.value) || 1)} className="bg-secondary" min="1" />
                 </div>
-                {/* Question Type */}
+                 {/* Question Type */}
                 <div className="space-y-2">
                      <Label className="text-right w-full block font-semibold">نوع الأسئلة</Label>
-                     <RadioGroup value={questionType} onValueChange={(v: QuestionType) => setQuestionType(v)} className="flex gap-4">
+                     <RadioGroup value={questionType} onValueChange={(v: any) => setQuestionType(v)} className="flex gap-4 justify-end">
                         <div className="flex items-center space-x-2 space-x-reverse">
                             <RadioGroupItem value="multiple-choice" id="mcq"/>
                             <Label htmlFor="mcq">اختيار من متعدد</Label>
@@ -316,6 +339,20 @@ export function QuestionGenerator() {
                          <div className="flex items-center space-x-2 space-x-reverse">
                             <RadioGroupItem value="essay" id="essay"/>
                              <Label htmlFor="essay">مقالي</Label>
+                        </div>
+                     </RadioGroup>
+                </div>
+                {/* Question Mode */}
+                 <div className="space-y-2">
+                     <Label className="text-right w-full block font-semibold">وضع الاختبار</Label>
+                     <RadioGroup value={questionMode} onValueChange={(v: any) => setQuestionMode(v)} className="flex gap-4 justify-end">
+                        <div className="flex items-center space-x-2 space-x-reverse">
+                            <RadioGroupItem value="interactive" id="interactive"/>
+                            <Label htmlFor="interactive">تفاعلي</Label>
+                        </div>
+                         <div className="flex items-center space-x-2 space-x-reverse">
+                            <RadioGroupItem value="static" id="static"/>
+                             <Label htmlFor="static">عرض ثابت</Label>
                         </div>
                      </RadioGroup>
                 </div>
@@ -332,8 +369,8 @@ export function QuestionGenerator() {
         if (!generatedSession) return null;
         const question = generatedSession.questions[currentQuestionIndex];
         const progress = ((currentQuestionIndex + 1) / generatedSession.questions.length) * 100;
-        const correctAnswers = quizState.answers.filter(a => a.isCorrect).length;
-        const incorrectAnswers = quizState.answers.length - correctAnswers;
+        
+        const lastAnswer = quizState.answers.find(a => a.questionIndex === currentQuestionIndex);
 
         return (
             <div className="space-y-6" dir="rtl">
@@ -341,49 +378,68 @@ export function QuestionGenerator() {
                     <CardHeader>
                         <div className="flex justify-between items-center">
                             <CardTitle>سؤال {currentQuestionIndex + 1} من {generatedSession.questions.length}</CardTitle>
-                            <div className="flex gap-4 text-sm">
-                                <span className="flex items-center gap-1 text-green-500"><Check/>{correctAnswers} صحيح</span>
-                                <span className="flex items-center gap-1 text-red-500"><XIcon/>{incorrectAnswers} خطأ</span>
+                             <div className="flex gap-4 text-sm">
+                                <span className="flex items-center gap-1 text-green-500"><Check/>{quizState.answers.filter(a => a.isCorrect).length} صحيح</span>
+                                <span className="flex items-center gap-1 text-red-500"><XIcon/>{quizState.answers.filter(a => a.isCorrect === false).length} خطأ</span>
                             </div>
                         </div>
                         <Progress value={progress} className="mt-2" />
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <p className="font-bold text-lg">{question.question}</p>
-                        <RadioGroup onValueChange={handleAnswerSelect} value={selectedOption || ''} disabled={isAnswerSubmitted}>
-                            {question.options?.map((option, index) => {
-                                const isSelected = selectedOption === option;
-                                const isCorrect = question.correctAnswer === option;
-                                const answerState = isAnswerSubmitted
-                                    ? isCorrect ? 'correct' : (isSelected ? 'incorrect' : 'none')
-                                    : 'none';
-                                
-                                return (
-                                    <Label key={index} className={cn("flex items-center p-3 border rounded-md cursor-pointer transition-colors",
-                                        isAnswerSubmitted && answerState === 'correct' && 'bg-green-500/20 border-green-500',
-                                        isAnswerSubmitted && answerState === 'incorrect' && 'bg-red-500/20 border-red-500',
-                                        !isAnswerSubmitted && 'hover:bg-secondary'
-                                    )}>
-                                        <RadioGroupItem value={option} className="ml-3"/>
-                                        {option}
-                                    </Label>
-                                );
-                            })}
-                        </RadioGroup>
+                        {question.questionType === 'multiple-choice' ? (
+                            <RadioGroup onValueChange={handleAnswerSelect} value={selectedAnswer} disabled={isAnswerSubmitted}>
+                                {question.options?.map((option, index) => {
+                                    const answerState = isAnswerSubmitted
+                                        ? (option === question.correctAnswer ? 'correct' : (option === selectedAnswer ? 'incorrect' : 'none'))
+                                        : 'none';
+                                    
+                                    return (
+                                        <Label key={index} className={cn("flex items-center p-3 border rounded-md cursor-pointer transition-colors",
+                                            answerState === 'correct' && 'bg-green-500/20 border-green-500',
+                                            answerState === 'incorrect' && 'bg-red-500/20 border-red-500',
+                                            !isAnswerSubmitted && 'hover:bg-secondary'
+                                        )}>
+                                            <RadioGroupItem value={option} className="ml-3"/>
+                                            {option}
+                                        </Label>
+                                    );
+                                })}
+                            </RadioGroup>
+                        ) : (
+                           <Textarea 
+                                placeholder='اكتب إجابتك هنا...'
+                                className='min-h-[150px] bg-secondary'
+                                value={selectedAnswer}
+                                onChange={(e) => setSelectedAnswer(e.target.value)}
+                                disabled={isAnswerSubmitted || isCorrecting}
+                           />
+                        )}
                     </CardContent>
                     <CardFooter className="flex flex-col items-stretch gap-4">
-                         {isAnswerSubmitted && (
-                            <Alert variant={quizState.answers[currentQuestionIndex]?.isCorrect ? 'default' : 'destructive'} className="border-green-500/50 bg-green-500/10 text-green-700 dark:text-green-400">
-                                <AlertTitle className={quizState.answers[currentQuestionIndex]?.isCorrect ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}>
-                                    {quizState.answers[currentQuestionIndex]?.isCorrect ? 'إجابة صحيحة!' : 'إجابة خاطئة!'}
+                         {isAnswerSubmitted && lastAnswer && (
+                            <Alert variant={lastAnswer.isCorrect || lastAnswer.correction?.isCorrect ? 'default' : 'destructive'}>
+                                <AlertTitle>
+                                   {generatedSession.questionType === 'multiple-choice'
+                                        ? (lastAnswer.isCorrect ? 'إجابة صحيحة!' : 'إجابة خاطئة!')
+                                        : (lastAnswer.correction?.isCorrect ? 'إجابتك صحيحة!' : 'إجابتك تحتاج لبعض التحسين')
+                                   }
                                 </AlertTitle>
-                                <AlertDescription>
-                                    <p className="font-bold">الشرح: {question.explanation}</p>
+                                <AlertDescription className="space-y-2">
+                                     {generatedSession.questionType === 'multiple-choice' ? (
+                                         <p className="font-bold">الشرح: {question.explanation}</p>
+                                     ) : (
+                                         <>
+                                            <p><b>تقييم الذكاء الاصطناعي:</b> {lastAnswer.correction?.feedback}</p>
+                                            {!lastAnswer.correction?.isCorrect && <p><b>الإجابة النموذجية:</b> {question.correctAnswer}</p>}
+                                         </>
+                                     )}
                                 </AlertDescription>
                             </Alert>
                          )}
-                         <Button onClick={isAnswerSubmitted ? handleNextQuestion : handleSubmitAnswer} disabled={!selectedOption}>
-                            {isAnswerSubmitted ? 'السؤال التالي' : 'تأكيد الإجابة'}
+                         <Button onClick={isAnswerSubmitted ? handleNextQuestion : handleSubmitAnswer} disabled={!selectedAnswer || isCorrecting}>
+                             {isCorrecting ? <Loader2 className='ml-2 animate-spin' /> : null}
+                            {isCorrecting ? 'جاري التصحيح...' : (isAnswerSubmitted ? 'السؤال التالي' : 'تأكيد الإجابة')}
                         </Button>
                     </CardFooter>
                 </Card>
@@ -393,10 +449,13 @@ export function QuestionGenerator() {
 
     const renderResultsView = () => {
         if (!generatedSession) return null;
-        const correctAnswers = quizState.answers.filter(a => a.isCorrect).length;
+        const correctAnswers = quizState.answers.filter(a => a.isCorrect || a.correction?.isCorrect).length;
         const totalQuestions = generatedSession.questions.length;
-        const score = (correctAnswers / totalQuestions) * 100;
-        const questionsWithMistakes = generatedSession.questions.filter((_, i) => !quizState.answers.find(a => a.questionIndex === i)?.isCorrect);
+        const score = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
+        const questionsWithMistakes = generatedSession.questions.filter((_, i) => {
+            const answer = quizState.answers.find(a => a.questionIndex === i);
+            return !answer || (!answer.isCorrect && !answer.correction?.isCorrect);
+        });
 
 
         return (
@@ -417,36 +476,45 @@ export function QuestionGenerator() {
                                    <History className="ml-2"/> مراجعة الأخطاء ({questionsWithMistakes.length})
                                 </Button>
                             )}
-                            <Button variant="secondary" onClick={() => setQuizState({ status: 'not-started', answers: [] })}>
+                            <Button variant="secondary" onClick={() => {
+                                setQuizState({ status: 'not-started', answers: generatedSession.userAnswers || [] });
+                                setCurrentQuestionIndex(0);
+                            }}>
                                 العودة للجلسة
                             </Button>
                          </div>
                     </CardContent>
                 </Card>
                 <Card>
-                    <CardHeader><CardTitle>ملخص الأسئلة</CardTitle></CardHeader>
+                    <CardHeader><CardTitle>ملخص الأسئلة والإجابات</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
                         {generatedSession.questions.map((q, i) => {
                             const userAnswer = quizState.answers.find(a => a.questionIndex === i);
+                            const isMcqCorrect = q.questionType === 'multiple-choice' && userAnswer?.isCorrect;
+                            const isEssayCorrect = q.questionType === 'essay' && userAnswer?.correction?.isCorrect;
+
                             return (
                                 <div key={i} className="p-3 border rounded-lg">
                                     <p className="font-bold">{i+1}. {q.question}</p>
-                                    <ul className="mt-2 space-y-1 pr-4">
-                                        {q.options?.map((opt, j) => {
-                                            const isCorrect = opt === q.correctAnswer;
-                                            const isSelected = opt === userAnswer?.selectedOption;
-                                            return (
+                                    {q.questionType === 'multiple-choice' && q.options ? (
+                                        <ul className="mt-2 space-y-1 pr-4">
+                                            {q.options.map((opt, j) => (
                                                 <li key={j} className={cn("flex items-center gap-2",
-                                                    isCorrect && 'text-green-500 font-bold',
-                                                    isSelected && !isCorrect && 'text-red-500'
+                                                    opt === q.correctAnswer && 'text-green-500 font-bold',
+                                                    opt === userAnswer?.answer && opt !== q.correctAnswer && 'text-red-500'
                                                 )}>
-                                                    {isCorrect ? <Check size={16}/> : (isSelected ? <XIcon size={16}/> : <Pilcrow size={12}/>)}
+                                                     {opt === q.correctAnswer ? <Check size={16}/> : (opt === userAnswer?.answer ? <XIcon size={16}/> : <Pilcrow size={12}/>)}
                                                     {opt}
                                                 </li>
-                                            );
-                                        })}
-                                    </ul>
-                                     <p className="text-sm text-muted-foreground mt-2 border-t pt-2"><b>الشرح:</b> {q.explanation}</p>
+                                            ))}
+                                        </ul>
+                                    ) : (
+                                        <div className='mt-2 space-y-2 text-sm pr-4'>
+                                            <p><b className={cn(isEssayCorrect ? 'text-green-500' : 'text-red-500')}>إجابتك:</b> {userAnswer?.answer || 'لم تتم الإجابة'}</p>
+                                            {userAnswer?.correction && <p><b>التقييم:</b> {userAnswer.correction.feedback}</p>}
+                                        </div>
+                                    )}
+                                     <p className="text-sm text-muted-foreground mt-2 border-t pt-2"><b>الشرح/الإجابة النموذجية:</b> {q.explanation}</p>
                                 </div>
                             );
                         })}
@@ -467,7 +535,7 @@ export function QuestionGenerator() {
             );
         }
 
-        if (questionMode === 'interactive') {
+        if (generatedSession.questionMode === 'interactive') {
             if (quizState.status === 'in-progress') return renderQuizView();
             if (quizState.status === 'completed') return renderResultsView();
         }
@@ -475,9 +543,11 @@ export function QuestionGenerator() {
         // Default view: show generated questions (static or before starting quiz)
         return (
             <div className="space-y-4 text-right" dir="rtl">
-                <Button onClick={() => startQuiz()} className="w-full">
-                    بدء الاختبار التفاعلي
-                </Button>
+                {generatedSession.questionMode === 'interactive' && (
+                    <Button onClick={() => startQuiz()} className="w-full">
+                        بدء الاختبار التفاعلي
+                    </Button>
+                )}
                 {generatedSession.questions.map((q, i) => (
                     <Card key={i}>
                         <CardHeader><CardTitle>سؤال {i+1}</CardTitle></CardHeader>

@@ -15,7 +15,10 @@ const QuestionSchema = z.object({
   options: z.array(z.string()).optional().describe('A list of multiple-choice options. Required for multiple-choice questions.'),
   correctAnswer: z.string().describe('The correct answer. For multiple-choice, this is one of the options. For essay questions, this is the ideal answer.'),
   explanation: z.string().describe('A brief explanation of why the correct answer is right.'),
+  questionType: z.enum(['multiple-choice', 'essay']).describe('The type of question.'),
 });
+
+export type Question = z.infer<typeof QuestionSchema>;
 
 const GenerateQuestionsInputSchema = z.object({
   context: z.string().optional().describe("The text context to generate questions from."),
@@ -25,14 +28,14 @@ const GenerateQuestionsInputSchema = z.object({
   count: z.number().min(1).describe('The number of questions to generate.'),
   questionType: z.enum(['multiple-choice', 'essay']).describe('The type of questions to generate.'),
 });
-export type GenerateQuestionsInput = z.infer<typeof GenerateQuestionsInputSchema>;
-
 
 const GenerateQuestionsOutputSchema = z.object({
   questions: z.array(QuestionSchema),
 });
+
+
+export type GenerateQuestionsInput = z.infer<typeof GenerateQuestionsInputSchema>;
 export type GenerateQuestionsOutput = z.infer<typeof GenerateQuestionsOutputSchema>;
-export type Question = z.infer<typeof QuestionSchema>;
 
 
 export async function generateQuestions(
@@ -53,11 +56,13 @@ const prompt = ai.definePrompt({
 3.  **Generate in Same Language:** Generate all questions, options, answers, and explanations in the **same language** as the detected context.
 4.  **Adhere to Request:** Generate exactly {{count}} questions of the type '{{questionType}}'.
 5.  **For 'multiple-choice' questions:**
+    *   Set 'questionType' to 'multiple-choice'.
     *   Create a clear and concise question.
     *   Provide exactly 4 distinct options.
     *   One option must be the correct answer.
     *   Provide a brief but thorough explanation for why the answer is correct.
 6.  **For 'essay' questions:**
+    *   Set 'questionType' to 'essay'.
     *   Create a thought-provoking question that requires a detailed answer.
     *   Provide a comprehensive and ideal 'correctAnswer' for the essay question.
     *   Provide a brief 'explanation' outlining the key points the ideal answer should cover.

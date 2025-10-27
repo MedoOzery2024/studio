@@ -36,12 +36,12 @@
           "description": "The location where the file is stored (e.g., cloud storage URL). Not applicable for text content stored directly in Firestore."
         },
         "transcribedText": {
-            "type": "string",
-            "description": "The full text content, e.g., from speech-to-text."
+          "type": "string",
+          "description": "The full text content, e.g., from speech-to-text."
         },
         "summarizedText": {
-            "type": "string",
-            "description": "The summarized version of the text content."
+          "type": "string",
+          "description": "The summarized version of the text content."
         }
       },
       "required": [
@@ -89,7 +89,43 @@
         "registrationDate"
       ]
     },
-    "QuestionSession": {
+    "MindMapSession": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MindMapSession",
+      "type": "object",
+      "description": "Represents a saved mind map generation session.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the mind map session."
+        },
+        "fileName": {
+          "type": "string",
+          "description": "The name of the session."
+        },
+        "mindMapData": {
+          "type": "object",
+          "description": "The generated mind map structure."
+        },
+        "uploadDate": {
+          "type": "string",
+          "description": "The date and time when the session was saved.",
+          "format": "date-time"
+        },
+        "userId": {
+          "type": "string",
+          "description": "The user who created the session."
+        }
+      },
+      "required": [
+        "id",
+        "fileName",
+        "mindMapData",
+        "uploadDate",
+        "userId"
+      ]
+    },
+     "QuestionSession": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "QuestionSession",
       "type": "object",
@@ -112,14 +148,19 @@
               "question": {"type": "string"},
               "options": {"type": "array", "items": {"type": "string"}},
               "correctAnswer": {"type": "string"},
-              "explanation": {"type": "string"}
+              "explanation": {"type": "string"},
+              "questionType": {"type": "string", "enum": ["multiple-choice", "essay"]}
             },
-            "required": ["question", "options", "correctAnswer", "explanation"]
+            "required": ["question", "correctAnswer", "explanation", "questionType"]
           }
         },
-        "isInteractive": {
-          "type": "boolean",
-          "description": "Whether the questions are multiple-choice."
+        "questionType": {
+           "type": "string",
+           "enum": ["multiple-choice", "essay"]
+        },
+        "questionMode": {
+           "type": "string",
+           "enum": ["interactive", "static"]
         },
         "uploadDate": {
           "type": "string",
@@ -137,14 +178,21 @@
             "type": "object",
             "properties": {
               "questionIndex": {"type": "number"},
-              "selectedOption": {"type": "string"},
-              "isCorrect": {"type": "boolean"}
+              "answer": {"type": "string"},
+              "isCorrect": {"type": "boolean"},
+               "correction": {
+                "type": "object",
+                "properties": {
+                  "isCorrect": {"type": "boolean"},
+                  "feedback": {"type": "string"}
+                }
+              }
             },
-            "required": ["questionIndex", "selectedOption", "isCorrect"]
+            "required": ["questionIndex", "answer"]
           }
         }
       },
-      "required": ["id", "fileName", "questions", "isInteractive", "uploadDate", "userId"]
+      "required": ["id", "fileName", "questions", "questionType", "questionMode", "uploadDate", "userId"]
     }
   },
   "auth": {
@@ -165,6 +213,12 @@
         "$ref": "#/entities/UploadedFile"
       },
       "description": "Stores files and text content created by each user. Includes denormalized 'userId' for authorization independence."
+    },
+    "/users/{userId}/mindMapSessions/{sessionId}": {
+      "schema": {
+        "$ref": "#/entities/MindMapSession"
+      },
+      "description": "Stores generated mind map sessions for each user. Path-based ownership ensures only the user can access their own sessions."
     },
     "/users/{userId}/questionSessions/{sessionId}": {
       "schema": {

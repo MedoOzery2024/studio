@@ -6,3 +6,4 @@ import './flows/assistant-flow';
 import './flows/text-to-speech-flow';
 import './flows/mind-map-flow';
 import './flows/generate-questions-flow';
+import './flows/correct-essay-flow';

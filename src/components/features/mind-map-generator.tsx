@@ -13,6 +13,8 @@ import { generateMindMap, type GenerateMindMapOutput } from '@/ai/flows/mind-map
 import { useUser, useFirestore, useMemoFirebase, useCollection, doc, setDoc, deleteDoc, collection } from '@/firebase';
 import { cn } from '@/lib/utils';
 import PptxGenJS from 'pptxgenjs';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 interface SavedSession {
     id: string;
@@ -101,16 +103,23 @@ export function MindMapGenerator() {
             uploadDate: new Date().toISOString(),
         };
 
-        try {
-            await setDoc(docRef, dataToSave, { merge: true });
-            toast({ title: "تم الحفظ بنجاح!", description: `تم حفظ جلسة "${name.trim()}".` });
-            setSelectedSessionId(sessionId);
-        } catch (error) {
-            console.error("Failed to save session:", error);
-            toast({ variant: "destructive", title: "فشل الحفظ" });
-        } finally {
-            setIsSaving(false);
-        }
+        setDoc(docRef, dataToSave, { merge: true })
+            .then(() => {
+                toast({ title: "تم الحفظ بنجاح!", description: `تم حفظ جلسة "${name.trim()}".` });
+                setSelectedSessionId(sessionId);
+            })
+            .catch((serverError) => {
+                const permissionError = new FirestorePermissionError({
+                    path: docRef.path,
+                    operation: 'write',
+                    requestResourceData: dataToSave,
+                });
+                errorEmitter.emit('permission-error', permissionError);
+            })
+            .finally(() => {
+                setIsSaving(false);
+            });
+            
     }, [user, firestore, generatedMap, selectedSessionId]);
     
     useEffect(() => {
@@ -363,3 +372,5 @@ export function MindMapGenerator() {
         </div>
     );
 }
+
+    

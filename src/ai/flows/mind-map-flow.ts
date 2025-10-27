@@ -56,6 +56,8 @@ const prompt = ai.definePrompt({
     prompt: `You are an expert in structuring information and creating mind maps.
 Based on the provided context (text and/or a file), generate a mind map.
 
+**Crucially, you must detect the language of the input context and generate the entire mind map (title, main ideas, and sub-points) in that same language.** For example, if the context is in Arabic, the output must be in Arabic.
+
 The mind map should have a central title, several main ideas branching from the title,
 and several sub-points for each main idea.
 

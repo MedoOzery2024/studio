@@ -22,7 +22,7 @@ const GenerateQuestionsInputSchema = z.object({
   file: z.object({
     url: z.string().describe("A data URI of the file. Expected format: 'data:<mimetype>;base64,<encoded_data>'."),
   }).optional().describe('An optional file (image, pdf) to use as context.'),
-  count: z.number().min(1).max(20).describe('The number of questions to generate.'),
+  count: z.number().min(1).describe('The number of questions to generate.'),
   questionType: z.enum(['multiple-choice', 'essay']).describe('The type of questions to generate.'),
 });
 export type GenerateQuestionsInput = z.infer<typeof GenerateQuestionsInputSchema>;

@@ -303,7 +303,7 @@ export function QuestionGenerator() {
                 {/* Question Count */}
                 <div className="space-y-2">
                     <Label htmlFor="q-count" className="text-right w-full block font-semibold">عدد الأسئلة</Label>
-                    <Input id="q-count" type="number" value={questionCount} onChange={(e) => setQuestionCount(Math.max(1, parseInt(e.target.value)))} className="bg-secondary" min="1" max="20" />
+                    <Input id="q-count" type="number" value={questionCount} onChange={(e) => setQuestionCount(Math.max(1, parseInt(e.target.value)))} className="bg-secondary" min="1" />
                 </div>
                 {/* Question Type */}
                 <div className="space-y-2">
@@ -314,8 +314,8 @@ export function QuestionGenerator() {
                             <Label htmlFor="mcq">اختيار من متعدد</Label>
                         </div>
                          <div className="flex items-center space-x-2 space-x-reverse">
-                            <RadioGroupItem value="essay" id="essay" disabled/>
-                             <Label htmlFor="essay" className="text-muted-foreground">مقالي (قريبًا)</Label>
+                            <RadioGroupItem value="essay" id="essay"/>
+                             <Label htmlFor="essay">مقالي</Label>
                         </div>
                      </RadioGroup>
                 </div>

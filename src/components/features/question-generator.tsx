@@ -95,10 +95,12 @@ export function QuestionGenerator() {
                 difficulty,
             });
             if (result && result.questions.length > 0) {
-                const newSessionId = doc(collection(firestore!, `users/${user!.uid}/questionSessions`)).id;
+                // For new sessions, we generate a client-side ID first.
+                // The session is only saved to Firestore after the first answer.
+                const newSessionId = doc(collection(firestore!, 'users')).id; // Temporary client-side ID
                 const newSession: SavedSession = {
                     id: newSessionId,
-                    fileName: sessionName || `جلسة ${new Date().toLocaleDateString()}`,
+                    fileName: sessionName || contextFile.name.split('.')[0] || `جلسة ${new Date().toLocaleDateString()}`,
                     questions: result.questions,
                     questionType: questionType,
                     questionMode: questionMode,
@@ -106,11 +108,10 @@ export function QuestionGenerator() {
                     userAnswers: [],
                 };
                 setGeneratedSession(newSession);
-                setSelectedSessionId(newSessionId);
-                await handleSaveSession(newSession, true);
+                setSelectedSessionId(newSession.id);
+                setSessionName(newSession.fileName);
                 toast({ title: "تم إنشاء الأسئلة بنجاح!" });
 
-                // Automatically start interactive quiz
                 if (newSession.questionMode === 'interactive') {
                     startQuiz(newSession.questions);
                 }
@@ -147,7 +148,6 @@ export function QuestionGenerator() {
         try {
             await setDoc(docRef, sessionToSave, { merge: true });
             if (!isNew) {
-                // We show a toast only on updates, not on initial creation.
                 toast({ title: "تم تحديث الجلسة تلقائياً." });
             }
         } catch (serverError) {
@@ -218,12 +218,11 @@ export function QuestionGenerator() {
         if (!selectedAnswer || !generatedSession) return;
         
         const currentQuestion = generatedSession.questions[currentQuestionIndex];
-        let newAnswer: UserAnswer;
+        let newAnswer: UserAnswer | null = null;
 
         if (generatedSession.questionType === 'multiple-choice') {
             const isCorrect = selectedAnswer === currentQuestion.correctAnswer;
             newAnswer = { questionIndex: currentQuestionIndex, answer: selectedAnswer, isCorrect };
-            setQuizState(prev => ({ ...prev, answers: [...prev.answers, newAnswer] }));
             setIsAnswerSubmitted(true);
         } else { // Essay question
             setIsCorrecting(true);
@@ -234,7 +233,6 @@ export function QuestionGenerator() {
                     userAnswer: selectedAnswer
                 });
                 newAnswer = { questionIndex: currentQuestionIndex, answer: selectedAnswer, correction };
-                setQuizState(prev => ({ ...prev, answers: [...prev.answers, newAnswer] }));
                 setIsAnswerSubmitted(true);
             } catch (e) {
                 toast({ variant: 'destructive', title: 'خطأ في التصحيح', description: 'فشل التواصل مع الذكاء الاصطناعي لتقييم الإجابة.' });
@@ -242,15 +240,19 @@ export function QuestionGenerator() {
                 setIsCorrecting(false);
             }
         }
+        
+        if (newAnswer) {
+             const updatedAnswers = [...quizState.answers, newAnswer];
+             setQuizState(prev => ({ ...prev, answers: updatedAnswers }));
+             
+             // Save for the first time after the first answer, or update on subsequent answers.
+             const updatedSession = { ...generatedSession, userAnswers: updatedAnswers };
+             handleSaveSession(updatedSession, quizState.answers.length === 0);
+        }
     };
 
     const handleNextQuestion = () => {
         if (!generatedSession) return;
-
-        // Auto-save progress
-        const updatedSession = { ...generatedSession, userAnswers: [...quizState.answers] };
-        if(selectedSessionId) handleSaveSession(updatedSession);
-
 
         if (currentQuestionIndex < generatedSession.questions.length - 1) {
             setCurrentQuestionIndex(prev => prev + 1);
@@ -441,8 +443,8 @@ export function QuestionGenerator() {
                         <div className="flex justify-between items-center">
                             <CardTitle>سؤال {currentQuestionIndex + 1} من {generatedSession.questions.length}</CardTitle>
                              <div className="flex gap-4 text-sm">
-                                <span className="flex items-center gap-1 text-green-500"><Check/>{quizState.answers.filter(a => a.isCorrect).length} صحيح</span>
-                                <span className="flex items-center gap-1 text-red-500"><XIcon/>{quizState.answers.filter(a => a.isCorrect === false).length} خطأ</span>
+                                <span className="flex items-center gap-1 text-green-500"><Check/>{quizState.answers.filter(a => a.isCorrect || a.correction?.isCorrect).length} صحيح</span>
+                                <span className="flex items-center gap-1 text-red-500"><XIcon/>{quizState.answers.filter(a => a.isCorrect === false || a.correction?.isCorrect === false).length} خطأ</span>
                             </div>
                         </div>
                         <Progress value={progress} className="mt-2" />
@@ -696,3 +698,5 @@ export function QuestionGenerator() {
         </div>
     );
 }
+
+    

@@ -15,10 +15,9 @@ const QuestionSchema = z.object({
   options: z.array(z.string()).optional().describe('A list of multiple-choice options. Required for multiple-choice questions.'),
   correctAnswer: z.string().describe('The correct answer. For multiple-choice, this is one of the options. For essay questions, this is the ideal answer.'),
   explanation: z.string().describe('A brief explanation of why the correct answer is right.'),
-  questionType: z.enum(['multiple-choice', 'essay']).describe('The type of question.'),
 });
 
-type Question = z.infer<typeof QuestionSchema>;
+export type Question = z.infer<typeof QuestionSchema>;
 
 const GenerateQuestionsInputSchema = z.object({
   context: z.string().optional().describe("The text context to generate questions from."),
@@ -31,13 +30,14 @@ const GenerateQuestionsInputSchema = z.object({
 });
 
 const GenerateQuestionsOutputSchema = z.object({
-  questions: z.array(QuestionSchema),
+  questions: z.array(QuestionSchema.extend({
+    questionType: z.enum(['multiple-choice', 'essay']).describe('The type of question.'),
+  })),
 });
 
 
 export type GenerateQuestionsInput = z.infer<typeof GenerateQuestionsInputSchema>;
 export type GenerateQuestionsOutput = z.infer<typeof GenerateQuestionsOutputSchema>;
-export type { Question };
 
 
 export async function generateQuestions(

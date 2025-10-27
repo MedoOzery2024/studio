@@ -148,14 +148,19 @@
               "question": {"type": "string"},
               "options": {"type": "array", "items": {"type": "string"}},
               "correctAnswer": {"type": "string"},
-              "explanation": {"type": "string"}
+              "explanation": {"type": "string"},
+              "questionType": {"type": "string", "enum": ["multiple-choice", "essay"]}
             },
-            "required": ["question", "correctAnswer", "explanation"]
+            "required": ["question", "correctAnswer", "explanation", "questionType"]
           }
         },
         "questionType": {
            "type": "string",
            "enum": ["multiple-choice", "essay"]
+        },
+        "questionMode": {
+           "type": "string",
+           "enum": ["interactive", "static"]
         },
         "uploadDate": {
           "type": "string",
@@ -173,14 +178,21 @@
             "type": "object",
             "properties": {
               "questionIndex": {"type": "number"},
-              "selectedOption": {"type": "string"},
-              "isCorrect": {"type": "boolean"}
+              "answer": {"type": "string"},
+              "isCorrect": {"type": "boolean"},
+               "correction": {
+                "type": "object",
+                "properties": {
+                  "isCorrect": {"type": "boolean"},
+                  "feedback": {"type": "string"}
+                }
+              }
             },
-            "required": ["questionIndex"]
+            "required": ["questionIndex", "answer"]
           }
         }
       },
-      "required": ["id", "fileName", "questions", "questionType", "uploadDate", "userId"]
+      "required": ["id", "fileName", "questions", "questionType", "questionMode", "uploadDate", "userId"]
     }
   },
   "auth": {

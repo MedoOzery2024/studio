@@ -111,7 +111,7 @@ export function MindMapGenerator() {
             .catch((serverError) => {
                 const permissionError = new FirestorePermissionError({
                     path: docRef.path,
-                    operation: 'write',
+                    operation: selectedSessionId ? 'update' : 'create',
                     requestResourceData: dataToSave,
                 });
                 errorEmitter.emit('permission-error', permissionError);
@@ -124,13 +124,13 @@ export function MindMapGenerator() {
     
     useEffect(() => {
         const handler = setTimeout(() => {
-            if (sessionName && generatedMap && user) {
+            if (sessionName && generatedMap && user && selectedSessionId) { // Only save automatically for existing sessions
                 handleSaveSession(sessionName);
             }
         }, 1500); // Debounce time
 
         return () => clearTimeout(handler);
-    }, [sessionName, generatedMap, user, handleSaveSession]);
+    }, [sessionName, generatedMap, user, selectedSessionId, handleSaveSession]);
 
 
     const handleViewSession = (session: SavedSession) => {
@@ -155,16 +155,22 @@ export function MindMapGenerator() {
     const handleDeleteSession = async (sessionId: string) => {
         if (!user || !firestore) return;
         const docRef = doc(firestore, `users/${user.uid}/mindMapSessions`, sessionId);
-        try {
-            await deleteDoc(docRef);
-            toast({ title: "تم الحذف بنجاح!" });
-            if (selectedSessionId === sessionId) {
-                handleNewSession();
-            }
-        } catch (error) {
-            console.error("Failed to delete session:", error);
-            toast({ variant: "destructive", title: "فشل الحذف" });
-        }
+        
+        deleteDoc(docRef)
+            .then(() => {
+                toast({ title: "تم الحذف بنجاح!" });
+                if (selectedSessionId === sessionId) {
+                    handleNewSession();
+                }
+            })
+            .catch((serverError) => {
+                const permissionError = new FirestorePermissionError({
+                    path: docRef.path,
+                    operation: 'delete',
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                toast({ variant: "destructive", title: "فشل الحذف" });
+            });
     };
 
     const exportToPPTX = () => {
@@ -311,6 +317,12 @@ export function MindMapGenerator() {
                             disabled={!generatedMap}
                         />
                         {isSaving && <Loader2 className="h-5 w-5 animate-spin" />}
+                         {generatedMap && !selectedSessionId && (
+                             <Button onClick={() => handleSaveSession(sessionName)} disabled={isSaving || !sessionName.trim()}>
+                                <Save className="ml-2 h-4 w-4" />
+                                حفظ
+                            </Button>
+                         )}
                     </div>
                 </CardHeader>
                 <CardContent>

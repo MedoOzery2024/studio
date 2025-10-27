@@ -303,7 +303,7 @@ export function QuestionGenerator() {
                 {/* Question Count */}
                 <div className="space-y-2">
                     <Label htmlFor="q-count" className="text-right w-full block font-semibold">عدد الأسئلة</Label>
-                    <Input id="q-count" type="number" value={questionCount} onChange={(e) => setQuestionCount(Math.max(1, parseInt(e.target.value)))} className="bg-secondary" min="1" />
+                    <Input id="q-count" type="number" value={questionCount} onChange={(e) => setQuestionCount(parseInt(e.target.value) || 1)} className="bg-secondary" min="1" />
                 </div>
                 {/* Question Type */}
                 <div className="space-y-2">

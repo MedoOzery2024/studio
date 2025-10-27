@@ -107,8 +107,14 @@ export function QuestionGenerator() {
                 };
                 setGeneratedSession(newSession);
                 setSelectedSessionId(newSessionId);
-                handleSaveSession(newSession, true); // Save the new session immediately
+                await handleSaveSession(newSession, true);
                 toast({ title: "تم إنشاء الأسئلة بنجاح!" });
+
+                // Automatically start interactive quiz
+                if (newSession.questionMode === 'interactive') {
+                    startQuiz(newSession.questions);
+                }
+
             } else {
                 throw new Error("Failed to generate questions.");
             }
@@ -138,18 +144,20 @@ export function QuestionGenerator() {
         if (!user || !firestore) return;
         const docRef = doc(firestore, `users/${user.uid}/questionSessions`, sessionToSave.id);
         
-        setDoc(docRef, sessionToSave, { merge: true })
-            .then(() => {
-                if (!isNew) toast({ title: "تم تحديث الجلسة تلقائياً." });
-            })
-            .catch((serverError) => {
-                const permissionError = new FirestorePermissionError({
-                    path: docRef.path,
-                    operation: isNew ? 'create' : 'update',
-                    requestResourceData: sessionToSave,
-                });
-                errorEmitter.emit('permission-error', permissionError);
+        try {
+            await setDoc(docRef, sessionToSave, { merge: true });
+            if (!isNew) {
+                // We show a toast only on updates, not on initial creation.
+                toast({ title: "تم تحديث الجلسة تلقائياً." });
+            }
+        } catch (serverError) {
+             const permissionError = new FirestorePermissionError({
+                path: docRef.path,
+                operation: isNew ? 'create' : 'update',
+                requestResourceData: sessionToSave,
             });
+            errorEmitter.emit('permission-error', permissionError);
+        }
     }, [user, firestore]);
 
     const handleNewSession = () => {
@@ -286,7 +294,6 @@ export function QuestionGenerator() {
       // Let's add a font that supports Arabic. The 'Amiri' font is a good choice.
       // This step is often the most complex, as it requires the font file (e.g., in TTF format).
       // For simplicity in this environment, we'll try to use the built-in fonts, but this is a known limitation.
-      // A full solution would require adding the font file to the project and loading it.
       // doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
       // doc.setFont('Amiri');
 
@@ -580,6 +587,7 @@ export function QuestionGenerator() {
     };
 
     const renderMainContent = () => {
+        // Show placeholder if no session is active
         if (!generatedSession) {
              return (
                  <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8">
@@ -590,19 +598,27 @@ export function QuestionGenerator() {
             );
         }
 
+        // --- INTERACTIVE MODE ---
         if (generatedSession.questionMode === 'interactive') {
             if (quizState.status === 'in-progress') return renderQuizView();
             if (quizState.status === 'completed') return renderResultsView();
-        }
-
-        // Default view: show generated questions (static or before starting quiz)
-        return (
-            <div className="space-y-4 text-right" dir="rtl">
-                {generatedSession.questionMode === 'interactive' && (
-                    <Button onClick={() => startQuiz()} className="w-full">
+            // If quiz is not started, show the "Start Quiz" button
+            return (
+                <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8">
+                    <FileQuestion className="w-16 h-16 mb-4 text-primary/50" />
+                    <h2 className="text-2xl font-semibold text-foreground">{generatedSession.fileName}</h2>
+                    <p className='mb-4'>الجلسة جاهزة. لديك {generatedSession.questions.length} أسئلة.</p>
+                    <Button onClick={() => startQuiz()} className="w-full max-w-sm">
                         بدء الاختبار التفاعلي
                     </Button>
-                )}
+                </div>
+            );
+        }
+
+        // --- STATIC MODE ---
+        // Default view for static mode: show all questions and answers
+        return (
+            <div className="space-y-4 text-right" dir="rtl">
                 {generatedSession.questions.map((q, i) => (
                     <Card key={i}>
                         <CardHeader><CardTitle>سؤال {i+1}</CardTitle></CardHeader>

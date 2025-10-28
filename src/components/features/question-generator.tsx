@@ -112,7 +112,7 @@ export function QuestionGenerator() {
                 toast({ title: "تم إنشاء الأسئلة بنجاح!" });
 
                 if (newSession.questionMode === 'interactive') {
-                    startQuiz(newSession.questions);
+                    startQuiz(newSession);
                 }
 
             } else {
@@ -157,7 +157,7 @@ export function QuestionGenerator() {
             });
             errorEmitter.emit('permission-error', permissionError);
         }
-    }, [user, firestore, toast]);
+    }, [user, firestore]);
 
     const handleNewSession = () => {
         setContextFile(null);
@@ -197,11 +197,11 @@ export function QuestionGenerator() {
     };
 
     // --- Quiz Logic ---
-    const startQuiz = (questions?: Question[]) => {
-        const targetQuestions = questions || generatedSession?.questions;
-        if (!targetQuestions) return;
+    const startQuiz = (session?: SavedSession) => {
+        const targetSession = session || generatedSession;
+        if (!targetSession) return;
 
-        setGeneratedSession(prev => prev ? { ...prev, questions: targetQuestions } : null);
+        setGeneratedSession(targetSession);
         setQuizState({ status: 'in-progress', answers: [] });
         setCurrentQuestionIndex(0);
         setSelectedAnswer('');
@@ -293,7 +293,6 @@ export function QuestionGenerator() {
       // jsPDF has built-in fonts, but none support Arabic well.
       // The following is a common pattern but requires the font to be available.
       // For this environment, we rely on jspdf-autotable's ability to handle this better with the right font name.
-      doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal'); // This line is illustrative
       doc.setFont('Amiri');
 
       doc.text(generatedSession.fileName, 105, 15, { align: 'center' });
@@ -532,7 +531,7 @@ export function QuestionGenerator() {
                                 <Repeat className="ml-2"/>إعادة الاختبار
                             </Button>
                             {questionsWithMistakes.length > 0 && (
-                                <Button variant="outline" onClick={() => startQuiz(questionsWithMistakes)}>
+                                <Button variant="outline" onClick={() => startQuiz({ ...generatedSession, questions: questionsWithMistakes })}>
                                    <History className="ml-2"/> مراجعة الأخطاء ({questionsWithMistakes.length})
                                 </Button>
                             )}
@@ -694,5 +693,3 @@ export function QuestionGenerator() {
         </div>
     );
 }
-
-    

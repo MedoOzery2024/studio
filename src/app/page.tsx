@@ -139,6 +139,7 @@ export default function Home() {
       </header>
 
       <main className="w-full max-w-6xl flex-grow mt-8 mb-8 flex flex-col items-center">
+        <h1 className="text-2xl font-bold text-center mb-4 text-primary">Welcome to Medo.Ai Time Hub</h1>
         <ClockDisplay />
         <div className="w-full mt-12">
             {renderContent()}

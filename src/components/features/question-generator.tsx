@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import PptxGenJS from 'pptxgenjs';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
+import { amiriFont } from '@/lib/AmiriFont';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -139,25 +140,38 @@ export function QuestionGenerator() {
         }
     };
     
-    const handleSaveSession = useCallback(async (sessionToSave: SavedSession, isFirstSave = false) => {
+    const handleSaveSession = useCallback(async (sessionToSave: SavedSession, isFirstAnswer: boolean = false) => {
         if (!user || !firestore) return;
-
-        const docRef = doc(firestore, `users/${user.uid}/questionSessions`, sessionToSave.id);
+    
+        // Ensure the session has a valid ID before saving
+        const sessionId = sessionToSave.id;
+        if (!sessionId) {
+            console.error("Save attempted on a session without an ID.");
+            return;
+        }
+    
+        const docRef = doc(firestore, `users/${user.uid}/questionSessions`, sessionId);
         
         try {
+            // Use merge:true to avoid overwriting data if only answers are updated
             await setDoc(docRef, sessionToSave, { merge: true });
-            if (isFirstSave) {
-                 toast({ title: "تم حفظ الجلسة بنجاح!" });
+            
+            if (isFirstAnswer) {
+                toast({ title: "تم حفظ الجلسة بنجاح!" });
             }
         } catch (serverError) {
-             const permissionError = new FirestorePermissionError({
+            const permissionError = new FirestorePermissionError({
                 path: docRef.path,
                 operation: 'write',
                 requestResourceData: sessionToSave,
             });
             errorEmitter.emit('permission-error', permissionError);
+            if (isFirstAnswer) { // Only show toast on the first save attempt
+                 toast({ variant: "destructive", title: "خطأ في حفظ الجلسة", description: "فشل الاتصال بقاعدة البيانات." });
+            }
         }
     }, [user, firestore]);
+    
 
     const handleNewSession = () => {
         setContextFile(null);
@@ -294,16 +308,20 @@ export function QuestionGenerator() {
         if (!generatedSession) return;
         const doc = new jsPDF();
       
-        // The following is a common pattern but requires the font to be available.
-        // For this environment, we rely on jspdf-autotable's ability to handle this better with the right font name.
-        doc.setFont('Amiri');
+        // Embed the Amiri font
+        doc.addFileToVFS("Amiri-Regular.ttf", amiriFont);
+        doc.addFont("Amiri-Regular.ttf", "Amiri", "normal");
+        doc.setFont("Amiri");
       
         doc.text(generatedSession.fileName, 105, 15, { align: 'center' });
       
         const body = generatedSession.questions.map((q, i) => {
-          let questionText = `${q.question} :${i + 1}س`;
-          let optionsText = q.options ? q.options.join('\n') : 'N/A';
-          let answerText = `${q.explanation} :شرح\n${q.correctAnswer} :إجابة`;
+          // Manually reverse the string for RTL display in jsPDF
+          const reverse = (str: string) => str.split('').reverse().join('');
+          let questionText = `${reverse(q.question)} :${i + 1}${reverse("س")}`;
+          let optionsText = q.options ? q.options.map(opt => reverse(opt)).join('\n') : 'N/A';
+          let answerText = `${reverse(q.explanation)} :${reverse("شرح")}\n${reverse(q.correctAnswer)} :${reverse("إجابة")}`;
+          
           return [answerText, optionsText, questionText];
         });
       
@@ -379,7 +397,7 @@ export function QuestionGenerator() {
                 {/* Question Count */}
                 <div className="space-y-2">
                     <Label htmlFor="q-count" className="text-right w-full block font-semibold">عدد الأسئلة</Label>
-                    <Input id="q-count" type="number" value={questionCount} onChange={(e) => setQuestionCount(parseInt(e.target.value) || 1)} className="bg-secondary" min="1" />
+                    <Input id="q-count" type="number" value={questionCount} onChange={(e) => setQuestionCount(Math.max(1, parseInt(e.target.value) || 1))} className="bg-secondary" min="1" />
                 </div>
                 {/* Difficulty Level */}
                 <div className="space-y-2">
@@ -696,3 +714,5 @@ export function QuestionGenerator() {
         </div>
     );
 }
+
+    

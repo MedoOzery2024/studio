@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, Upload, FileDown, Trash2, FileQuestion, File as FileIcon, X, Save, FileText, View, Sparkles, Check, XIcon, Repeat, History, Pilcrow } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { generateQuestions, type Question } from '@/ai/flows/generate-questions-flow';
+import { generateQuestions, type Question, GenerateQuestionsInput } from '@/ai/flows/generate-questions-flow';
 import { correctEssay, type CorrectEssayOutput } from '@/ai/flows/correct-essay-flow';
 import { useUser, useFirestore, useMemoFirebase, useCollection, doc, setDoc, deleteDoc, collection } from '@/firebase';
 import { cn } from '@/lib/utils';
@@ -86,7 +86,7 @@ export function QuestionGenerator() {
             return;
         }
         setIsGenerating(true);
-        handleNewSession();
+        handleNewSession(); // Clear previous state
         try {
             const result = await generateQuestions({
                 file: { url: contextFile.url },
@@ -94,10 +94,9 @@ export function QuestionGenerator() {
                 questionType,
                 difficulty,
             });
+
             if (result && result.questions.length > 0) {
-                // For new sessions, we generate a client-side ID first.
-                // The session is only saved to Firestore after the first answer.
-                const newSessionId = doc(collection(firestore!, 'users')).id; // Temporary client-side ID
+                 const newSessionId = doc(collection(firestore!, 'users')).id; // Temporary client-side ID
                 const newSession: SavedSession = {
                     id: newSessionId,
                     fileName: sessionName || contextFile.name.split('.')[0] || `جلسة ${new Date().toLocaleDateString()}`,
@@ -245,9 +244,9 @@ export function QuestionGenerator() {
              const updatedAnswers = [...quizState.answers, newAnswer];
              setQuizState(prev => ({ ...prev, answers: updatedAnswers }));
              
-             // Save for the first time after the first answer, or update on subsequent answers.
+             const isFirstAnswer = quizState.answers.length === 0;
              const updatedSession = { ...generatedSession, userAnswers: updatedAnswers };
-             handleSaveSession(updatedSession, quizState.answers.length === 0);
+             handleSaveSession(updatedSession, isFirstAnswer);
         }
     };
 
@@ -299,7 +298,6 @@ export function QuestionGenerator() {
       // doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
       // doc.setFont('Amiri');
 
-      doc.setRtl(true);
       doc.text(generatedSession.fileName, 105, 15, { align: 'center' });
 
       const body = generatedSession.questions.map((q, i) => {
@@ -611,7 +609,7 @@ export function QuestionGenerator() {
                     <h2 className="text-2xl font-semibold text-foreground">{generatedSession.fileName}</h2>
                     <p className='mb-4'>الجلسة جاهزة. لديك {generatedSession.questions.length} أسئلة.</p>
                     <Button onClick={() => startQuiz()} className="w-full max-w-sm">
-                        بدء الاختبار التفاعلي
+                        بدء الاختبار
                     </Button>
                 </div>
             );
@@ -652,7 +650,7 @@ export function QuestionGenerator() {
                      <div className="flex w-full flex-col sm:flex-row items-center justify-between gap-4" dir="rtl">
                         <h2 className="text-xl font-bold text-primary truncate">{generatedSession?.fileName || "الأسئلة"}</h2>
                         {generatedSession && (
-                             <div className="flex gap-2">
+                             <div className="flex flex-wrap gap-2">
                                 <Button variant="outline" onClick={exportToPdf}>تصدير PDF</Button>
                                 <Button variant="outline" onClick={exportToPptx}>تصدير PPTX</Button>
                                 <Button variant="outline" onClick={exportToTxt}>تصدير TXT</Button>

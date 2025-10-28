@@ -663,9 +663,6 @@ export function QuestionGenerator() {
                         <h2 className="text-xl font-bold text-primary truncate">{generatedSession?.fileName || "الأسئلة"}</h2>
                         {generatedSession && (
                              <div className="flex flex-wrap gap-2">
-                                <Button variant="outline" onClick={exportToPdf}>تصدير PDF</Button>
-                                <Button variant="outline" onClick={exportToPptx}>تصدير PPTX</Button>
-                                <Button variant="outline" onClick={exportToTxt}>تصدير TXT</Button>
                                 <Button onClick={handleNewSession}><FileText className="ml-2"/>جلسة جديدة</Button>
                             </div>
                         )}

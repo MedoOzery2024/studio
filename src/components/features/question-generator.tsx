@@ -15,7 +15,6 @@ import { cn } from '@/lib/utils';
 import PptxGenJS from 'pptxgenjs';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
-import { amiriFont } from '@/lib/AmiriFont';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -308,19 +307,14 @@ export function QuestionGenerator() {
         if (!generatedSession) return;
         const doc = new jsPDF();
       
-        // Embed the Amiri font
-        doc.addFileToVFS("Amiri-Regular.ttf", amiriFont);
-        doc.addFont("Amiri-Regular.ttf", "Amiri", "normal");
-        doc.setFont("Amiri");
-      
         doc.text(generatedSession.fileName, 105, 15, { align: 'center' });
       
         const body = generatedSession.questions.map((q, i) => {
-          // Manually reverse the string for RTL display in jsPDF
-          const reverse = (str: string) => str.split('').reverse().join('');
-          let questionText = `${reverse(q.question)} :${i + 1}${reverse("س")}`;
-          let optionsText = q.options ? q.options.map(opt => reverse(opt)).join('\n') : 'N/A';
-          let answerText = `${reverse(q.explanation)} :${reverse("شرح")}\n${reverse(q.correctAnswer)} :${reverse("إجابة")}`;
+          // Simple RTL hack by adding space
+          const rtl = (str: string) => `   ${str}`;
+          let questionText = rtl(`س${i + 1}: ${q.question}`);
+          let optionsText = q.options ? q.options.map(opt => rtl(opt)).join('\n') : 'N/A';
+          let answerText = `${rtl(`إجابة: ${q.correctAnswer}`)}\n${rtl(`شرح: ${q.explanation}`)}`;
           
           return [answerText, optionsText, questionText];
         });
@@ -714,5 +708,3 @@ export function QuestionGenerator() {
         </div>
     );
 }
-
-    

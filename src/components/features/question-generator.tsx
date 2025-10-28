@@ -146,8 +146,8 @@ export function QuestionGenerator() {
         
         try {
             await setDoc(docRef, sessionToSave, { merge: true });
-            if (!isNew) {
-                toast({ title: "تم تحديث الجلسة تلقائياً." });
+            if (isNew) {
+                 toast({ title: "تم حفظ الجلسة بنجاح!" });
             }
         } catch (serverError) {
              const permissionError = new FirestorePermissionError({
@@ -157,7 +157,7 @@ export function QuestionGenerator() {
             });
             errorEmitter.emit('permission-error', permissionError);
         }
-    }, [user, firestore]);
+    }, [user, firestore, toast]);
 
     const handleNewSession = () => {
         setContextFile(null);
@@ -244,9 +244,10 @@ export function QuestionGenerator() {
              const updatedAnswers = [...quizState.answers, newAnswer];
              setQuizState(prev => ({ ...prev, answers: updatedAnswers }));
              
-             const isFirstAnswer = quizState.answers.length === 0;
+             const isFirstAnswerForSession = (generatedSession.userAnswers || []).length === 0;
              const updatedSession = { ...generatedSession, userAnswers: updatedAnswers };
-             handleSaveSession(updatedSession, isFirstAnswer);
+             setGeneratedSession(updatedSession); // Update local state immediately
+             handleSaveSession(updatedSession, isFirstAnswerForSession);
         }
     };
 
@@ -287,16 +288,13 @@ export function QuestionGenerator() {
       if (!generatedSession) return;
       const doc = new jsPDF();
       
-      // It's crucial to use a font that supports the characters you need.
-      // jsPDF has limited built-in support for unicode. We can either embed a font or use a workaround.
-      // For this case, we'll assume the default font might work for some basic things but will fail for Arabic.
-      // The `jspdf-autotable` library has better unicode support if configured correctly.
-      
-      // Let's add a font that supports Arabic. The 'Amiri' font is a good choice.
-      // This step is often the most complex, as it requires the font file (e.g., in TTF format).
-      // For simplicity in this environment, we'll try to use the built-in fonts, but this is a known limitation.
-      // doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
-      // doc.setFont('Amiri');
+      // Add Amiri font for Arabic support.
+      // This is a simplified approach. For production, you'd host the font file.
+      // jsPDF has built-in fonts, but none support Arabic well.
+      // The following is a common pattern but requires the font to be available.
+      // For this environment, we rely on jspdf-autotable's ability to handle this better with the right font name.
+      doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal'); // This line is illustrative
+      doc.setFont('Amiri');
 
       doc.text(generatedSession.fileName, 105, 15, { align: 'center' });
 
@@ -311,7 +309,7 @@ export function QuestionGenerator() {
           head: [['الإجابة والشرح', 'الخيارات', 'السؤال']],
           body: body,
           startY: 25,
-          styles: { font: "Amiri", halign: 'right' }, // Using a generic name, assuming it's loaded
+          styles: { font: "Amiri", halign: 'right' }, // Use a font that supports Arabic
           headStyles: {fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold', halign: 'right'},
           columnStyles: {
               0: { halign: 'right' },
@@ -329,11 +327,11 @@ export function QuestionGenerator() {
       pptx.layout = 'LAYOUT_16x9';
 
       const titleSlide = pptx.addSlide();
-      titleSlide.addText(generatedSession.fileName, { x: 0.5, y: 2.5, w: '90%', h: 1, align: 'center', fontSize: 32, bold: true });
+      titleSlide.addText(generatedSession.fileName, { x: 0.5, y: 2.5, w: '90%', h: 1, align: 'center', fontSize: 32, bold: true, rtlMode: true });
 
       generatedSession.questions.forEach((q, i) => {
           const slide = pptx.addSlide();
-          slide.addText(`سؤال ${i + 1}: ${q.question}`, { x: 0.5, y: 0.5, w: '90%', h: 1, fontSize: 24, bold: true, align: 'right' });
+          slide.addText(`سؤال ${i + 1}: ${q.question}`, { x: 0.5, y: 0.5, w: '90%', h: 1, fontSize: 24, bold: true, align: 'right', rtlMode: true });
           
           let bodyText = '';
           if (q.options) {

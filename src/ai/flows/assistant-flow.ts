@@ -48,17 +48,15 @@ Your capabilities include:
 
 Engage in a friendly and helpful conversation. Your responses should be in Arabic.`;
 
-    const fullPrompt: any[] = [];
-    
-    const textPart = `${systemPrompt}\n\nUser Question: ${prompt}`;
+    const fullPrompt: any[] = [{ text: systemPrompt }];
 
     if (file) {
       fullPrompt.push({ media: { url: file.url } });
-      fullPrompt.push({ text: textPart });
-    } else {
-      fullPrompt.push({ text: textPart });
     }
-
+    
+    // Add the user's text prompt at the end.
+    fullPrompt.push({ text: `\n\nUser Question: ${prompt}` });
+    
     const modelToUse = 'googleai/gemini-2.5-flash';
     
     const {text} = await ai.generate({

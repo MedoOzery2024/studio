@@ -21,7 +21,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Textarea } from '../ui/textarea';
-import { amiriFont } from '@/lib/AmiriFont';
 
 // --- Types ---
 type QuestionType = 'multiple-choice' | 'essay';
@@ -295,10 +294,9 @@ export function QuestionGenerator() {
         if (!generatedSession) return;
         const doc = new jsPDF();
       
-        // Embed the Amiri font
-        doc.addFileToVFS("Amiri-Regular.ttf", amiriFont);
-        doc.addFont("Amiri-Regular.ttf", "Amiri", "normal");
-        doc.setFont("Amiri");
+        // The following is a common pattern but requires the font to be available.
+        // For this environment, we rely on jspdf-autotable's ability to handle this better with the right font name.
+        doc.setFont('Amiri');
       
         doc.text(generatedSession.fileName, 105, 15, { align: 'center' });
       

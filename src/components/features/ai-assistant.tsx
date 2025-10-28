@@ -72,7 +72,7 @@ export function AiAssistant() {
         try {
              const result = await askAssistant({
                 prompt: promptText,
-                file: currentFile ? { url: currentFile.url } : undefined,
+                file: currentFile ? { url: currentFile.url, type: currentFile.type } : undefined,
             });
 
             if (result && result.response) {

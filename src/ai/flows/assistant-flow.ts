@@ -14,6 +14,7 @@ const AssistantInputSchema = z.object({
   prompt: z.string().describe("The user's latest message."),
    file: z.object({
     url: z.string().describe("A data URI of the file. Expected format: 'data:<mimetype>;base64,<encoded_data>'."),
+    type: z.string().describe("The MIME type of the file (e.g., 'image/jpeg', 'application/pdf')."),
   }).optional().describe('An optional file (image, pdf) to include with the prompt.'),
 });
 export type AssistantInput = z.infer<typeof AssistantInputSchema>;
@@ -49,19 +50,15 @@ Engage in a friendly and helpful conversation. Your responses should be in Arabi
 
     const fullPrompt: any[] = [];
     
-    // Combine system prompt, user prompt, and file context into a single cohesive prompt.
     const textPart = `${systemPrompt}\n\nUser Question: ${prompt}`;
 
     if (file) {
-      // If a file is present, structure the prompt for multimodal understanding.
       fullPrompt.push({ media: { url: file.url } });
       fullPrompt.push({ text: textPart });
     } else {
-      // If no file, just send the text prompt.
       fullPrompt.push({ text: textPart });
     }
 
-    // Use a single, consistent model to avoid quota issues with specialized models.
     const modelToUse = 'googleai/gemini-2.5-flash';
     
     const {text} = await ai.generate({

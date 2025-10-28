@@ -21,6 +21,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Textarea } from '../ui/textarea';
+import { amiriFont } from '@/lib/AmiriFont';
 
 // --- Types ---
 type QuestionType = 'multiple-choice' | 'essay';
@@ -96,9 +97,8 @@ export function QuestionGenerator() {
             });
 
             if (result && result.questions.length > 0) {
-                 const newSessionId = doc(collection(firestore!, 'users')).id; // Temporary client-side ID
                 const newSession: SavedSession = {
-                    id: newSessionId,
+                    id: doc(collection(firestore!, 'users')).id, // Temporary client-side ID
                     fileName: sessionName || contextFile.name.split('.')[0] || `جلسة ${new Date().toLocaleDateString()}`,
                     questions: result.questions,
                     questionType: questionType,
@@ -140,19 +140,20 @@ export function QuestionGenerator() {
         }
     };
     
-    const handleSaveSession = useCallback(async (sessionToSave: SavedSession, isNew = false) => {
+    const handleSaveSession = useCallback(async (sessionToSave: SavedSession, isFirstSave = false) => {
         if (!user || !firestore) return;
+
         const docRef = doc(firestore, `users/${user.uid}/questionSessions`, sessionToSave.id);
         
         try {
             await setDoc(docRef, sessionToSave, { merge: true });
-            if (isNew) {
+            if (isFirstSave) {
                  toast({ title: "تم حفظ الجلسة بنجاح!" });
             }
         } catch (serverError) {
              const permissionError = new FirestorePermissionError({
                 path: docRef.path,
-                operation: isNew ? 'create' : 'update',
+                operation: 'write',
                 requestResourceData: sessionToSave,
             });
             errorEmitter.emit('permission-error', permissionError);
@@ -221,6 +222,8 @@ export function QuestionGenerator() {
         
         const currentQuestion = generatedSession.questions[currentQuestionIndex];
         let newAnswer: UserAnswer | null = null;
+        
+        const isFirstAnswerForSession = (quizState.answers || []).length === 0;
 
         if (generatedSession.questionType === 'multiple-choice') {
             const isCorrect = selectedAnswer === currentQuestion.correctAnswer;
@@ -247,7 +250,6 @@ export function QuestionGenerator() {
              const updatedAnswers = [...quizState.answers, newAnswer];
              setQuizState(prev => ({ ...prev, answers: updatedAnswers }));
              
-             const isFirstAnswerForSession = (generatedSession.userAnswers || []).length === 0;
              if (user) { // Only save if user is available
                 const updatedSession = { ...generatedSession, userAnswers: updatedAnswers };
                 setGeneratedSession(updatedSession); // Update local state immediately
@@ -292,30 +294,32 @@ export function QuestionGenerator() {
     const exportToPdf = () => {
         if (!generatedSession) return;
         const doc = new jsPDF();
-        
-        // This font is included in jsPDF and supports basic Arabic characters.
-        doc.setFont('Amiri');
+      
+        // Embed the Amiri font
+        doc.addFileToVFS("Amiri-Regular.ttf", amiriFont);
+        doc.addFont("Amiri-Regular.ttf", "Amiri", "normal");
+        doc.setFont("Amiri");
       
         doc.text(generatedSession.fileName, 105, 15, { align: 'center' });
       
         const body = generatedSession.questions.map((q, i) => {
-            let questionText = `${q.question} :${i + 1}س`;
-            let optionsText = q.options ? q.options.join('\n') : 'N/A';
-            let answerText = `${q.explanation} :شرح\n${q.correctAnswer} :إجابة`;
-            return [answerText, optionsText, questionText];
+          let questionText = `${q.question} :${i + 1}س`;
+          let optionsText = q.options ? q.options.join('\n') : 'N/A';
+          let answerText = `${q.explanation} :شرح\n${q.correctAnswer} :إجابة`;
+          return [answerText, optionsText, questionText];
         });
       
         (doc as any).autoTable({
-            head: [['الإجابة والشرح', 'الخيارات', 'السؤال']],
-            body: body,
-            startY: 25,
-            styles: { font: "Amiri", halign: 'right' },
-            headStyles: {font: "Amiri", fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold', halign: 'right'},
-            columnStyles: {
-                0: { halign: 'right' },
-                1: { halign: 'right' },
-                2: { halign: 'right' },
-            }
+          head: [['الإجابة والشرح', 'الخيارات', 'السؤال']],
+          body: body,
+          startY: 25,
+          styles: { font: "Amiri", halign: 'right' },
+          headStyles: { font: "Amiri", fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold', halign: 'right' },
+          columnStyles: {
+            0: { halign: 'right' },
+            1: { halign: 'right' },
+            2: { halign: 'right' },
+          }
         });
         
         doc.save(`${generatedSession.fileName}.pdf`);
@@ -694,5 +698,3 @@ export function QuestionGenerator() {
         </div>
     );
 }
-
-    
